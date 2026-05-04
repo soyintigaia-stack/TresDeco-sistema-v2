@@ -1,8 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-export const supabase = createClient(supabaseUrl, supabaseKey)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
+
+// Nota: `next build` intenta pre-renderizar rutas aunque sean `use client`.
+// Si las env vars no existen en CI/build local, falla el build completo.
+// En runtime, si faltan, las queries van a fallar de forma explícita.
+export const supabase = createClient(
+  supabaseUrl || 'https://example.invalid',
+  supabaseKey || 'anon-key-missing'
+)
 
 // ESTÁNDAR
 export type EstadoOT = 'Pendiente' | 'En producción' | 'Pausado' | 'Listo' | 'Entregado'
