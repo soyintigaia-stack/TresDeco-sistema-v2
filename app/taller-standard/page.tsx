@@ -101,6 +101,22 @@ export default function TallerStandardPage() {
 
   const nombreOperario = operarios.find(o => o.id === operarioId)?.nombre ?? operarioNombre.trim()
 
+  const comenzarProduccion = async () => {
+    if (!otActual) return
+    if (!nombreOperario) { showToast('Seleccioná quién sos primero.'); return }
+    await supabase.from('ordenes_trabajo').update({
+      estado: 'En producción',
+      updated_at: new Date().toISOString(),
+    }).eq('id', otActual.id)
+    await supabase.from('actividad').insert({
+      ot_id: otActual.id,
+      descripcion: `▶ Producción iniciada — ${otActual.producto} para ${otActual.cliente}`,
+      usuario: nombreOperario,
+    })
+    cargar()
+    showToast('Producción iniciada')
+  }
+
   const avanzarEtapa = async () => {
     if (!otActual) return
     if (!nombreOperario) { showToast('Seleccioná quién sos primero.'); return }
@@ -416,6 +432,11 @@ export default function TallerStandardPage() {
                       <p className="text-emerald-300 text-sm font-medium">✅ Listo para entrega</p>
                       <p className="text-emerald-400/70 text-xs mt-1">Administración confirma la entrega al cliente</p>
                     </div>
+                  ) : otActual.estado === 'Pendiente' ? (
+                    <button onClick={comenzarProduccion}
+                      className="w-full py-3.5 rounded-xl bg-[#C9B99A]/10 border border-[#C9B99A]/30 text-[#C9B99A] font-bold text-sm hover:bg-[#C9B99A]/20 transition-all">
+                      ▶ Comenzar producción — {etapaActualNombre}
+                    </button>
                   ) : (
                     <div className="flex gap-3">
                       <button onClick={() => setModalProblema(true)}
