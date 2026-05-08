@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/soled/Downloads/**)",
+      "Bash(ls drive-download-20260508T154331Z-3-001.zip drive-download-20260508T154218Z-3-001.zip drive-download-20260508T154218Z-3-002.zip)",
+      "Bash(unzip -l drive-download-20260508T154331Z-3-001.zip)",
+      "Bash(unzip -l drive-download-20260508T154218Z-3-001.zip)",
+      "Bash(unzip -l drive-download-20260508T154218Z-3-002.zip)",
+      "Bash(mkdir -p /tmp/tresdeco)",
+      "Read(//tmp/**)",
+      "Bash(unzip -jo /c/Users/soled/Downloads/drive-download-20260508T154331Z-3-001.zip '02-PROCESOS DE MEJORA PARA IMPLEMENTACION IA-SOLE/01-PROCESOS SECUENCIAS DE DISEÑO/MUEBLES A MEDIDA - SISTEMA OP TRESDESCO PASO A PASO .docx' '02-PROCESOS DE MEJORA PARA IMPLEMENTACION IA-SOLE/01-PROCESOS SECUENCIAS DE DISEÑO/PRODUCTOS STANDAR -SISTEMA OP DE IMPLEMENTACION .docx' '02-PROCESOS DE MEJORA PARA IMPLEMENTACION IA-SOLE/01-PROCESOS SECUENCIAS DE DISEÑO/Tresdeco_Sistema_Gestion_Completo.xlsx' '02-PROCESOS DE MEJORA PARA IMPLEMENTACION IA-SOLE/Control_Calidad_Tresdeco ABRIL.xlsx' 01-PRESENTACION/Informaciòn.TresDeco.docx)",
+      "Read(//c/Users/soled/OneDrive/Documentos/TRESDECÓ//**)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Read(//c/Users/soled/**)",
+      "Read(//c/Users/soled/AppData/Roaming/**)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(cat .env.local)",
+      "Bash(cat ../.env.local)",
+      "Bash(cat ../../.env.local)",
+      "PowerShell(cd \"C:\\\\Users\\\\soled\\\\OneDrive\\\\Documentos\\\\TRESDECÓ\\\\TresDeco-sistema-v2\\\\.claude\\\\worktrees\\\\blissful-wiles-d3e4a5\"; Start-Process powershell -ArgumentList \"-NoExit\", \"-Command\", \"npm run dev\" -WindowStyle Normal)"
+    ]
+  }
+}

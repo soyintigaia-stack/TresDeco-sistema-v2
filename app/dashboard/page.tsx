@@ -79,7 +79,7 @@ export default function DashboardPage() {
     if (!siguiente) return
     await supabase.from('ordenes_trabajo').update({ estado: siguiente, updated_at: new Date().toISOString() }).eq('id', modalAvanzarMedida.id)
     await supabase.from('actividad').insert({ ot_id: modalAvanzarMedida.id, descripcion: `→ Estado avanzado a: ${siguiente}`, usuario: 'Dante' })
-    if (siguiente === 'Producción') {
+    if (siguiente === 'Corte') {
       await supabase.from('alertas').insert({ tipo: 'info', mensaje: `${modalAvanzarMedida.id} (${modalAvanzarMedida.cliente}) — ${modalAvanzarMedida.producto} pasó a Producción.`, ot_id: modalAvanzarMedida.id })
     }
     setModalAvanzarMedida(null); cargar()
