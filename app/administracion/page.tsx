@@ -5,11 +5,14 @@ import {
   supabase,
   type OrdenTrabajo, type Alerta, type Operario, type EtapaRegistro,
   type Relevamiento, type PrecioMedida, type ProductoCatalogo, type Despiece,
+  type Lead, type EstadoLead, type FuenteLead,
   ESTADO_COLOR_STANDARD, ESTADO_COLOR_MEDIDA, ESTADOS_MEDIDA,
-  ETAPAS_PREVENTA, fmt, fmtFecha, fmtPeso, isPreVenta,
+  ETAPAS_PREVENTA, ESTADO_LEAD_CONFIG, FUENTE_LABEL,
+  fmt, fmtFecha, fmtPeso, isPreVenta,
+  COLORES_DISPONIBLES,
 } from '@/lib/supabase'
 
-type Vista = 'resumen' | 'standard' | 'medida' | 'cotizador' | 'operarios' | 'alertas' | 'catalogo'
+type Vista = 'resumen' | 'standard' | 'medida' | 'cotizador' | 'catalogo' | 'crm' | 'operarios' | 'alertas'
 
 const BADGE_ALERTA: Record<string, { dot: string; card: string; text: string }> = {
   danger:  { dot: 'bg-red-400',   card: 'border-red-900 bg-red-950/20',    text: 'text-red-200'   },
@@ -41,6 +44,16 @@ export default function AdminPage() {
   const [notaAlerta, setNotaAlerta] = useState('')
   const [comentario, setComentario] = useState('')
 
+  // CRM / Leads
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [filtroLead, setFiltroLead] = useState<EstadoLead | null>(null)
+  const [modalLead, setModalLead] = useState<Lead | null | 'nuevo'>(null)
+  const [leadForm, setLeadForm] = useState({
+    nombre: '', telefono: '', barrio: '', producto: 'Zapatero Slim',
+    color: '', cantidad: '1', metodo_pago: '', fuente: 'manual' as FuenteLead, notas: '',
+  })
+  const [leadEstadoEdit, setLeadEstadoEdit] = useState<EstadoLead>('nuevo')
+
   // Catálogo / Despieces
   const [catalogo, setCatalogo] = useState<ProductoCatalogo[]>([])
   const [productoSeleccionado, setProductoSeleccionado] = useState<ProductoCatalogo | null>(null)
@@ -62,7 +75,7 @@ export default function AdminPage() {
 
   const cargar = useCallback(async () => {
     const [
-      { data: o }, { data: a }, { data: ops }, { data: pr }, { data: reg }, { data: rel }, { data: cat }
+      { data: o }, { data: a }, { data: ops }, { data: pr }, { data: reg }, { data: rel }, { data: cat }, { data: lds }
     ] = await Promise.all([
       supabase.from('ordenes_trabajo').select('*').order('fecha_entrega_comprometida', { ascending: true }),
       supabase.from('alertas').select('*').eq('resuelta', false).order('created_at', { ascending: false }),
@@ -71,6 +84,7 @@ export default function AdminPage() {
       supabase.from('etapa_registro').select('*').order('created_at', { ascending: false }).limit(200),
       supabase.from('relevamientos').select('*').order('created_at', { ascending: false }),
       supabase.from('productos_catalogo').select('*').order('codigo'),
+      supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(300),
     ])
     if (o) setOts(o)
     if (a) setAlertas(a)
@@ -79,6 +93,7 @@ export default function AdminPage() {
     if (reg) setRegistros(reg)
     if (rel) setRelevamientos(rel)
     if (cat) setCatalogo(cat)
+    if (lds) setLeads(lds)
     setLoading(false)
   }, [])
 
@@ -197,6 +212,65 @@ export default function AdminPage() {
     setModalPresupuesto(null); setPresForm({ precio_final: '', notas: '' }); cargar()
   }
 
+  // CRM — CRUD de leads
+  const guardarLead = async () => {
+    if (!leadForm.nombre.trim()) return
+    const datos = {
+      nombre: leadForm.nombre.trim(),
+      telefono: leadForm.telefono.trim() || null,
+      barrio: leadForm.barrio.trim() || null,
+      producto: leadForm.producto,
+      color: leadForm.color || null,
+      cantidad: parseInt(leadForm.cantidad) || 1,
+      metodo_pago: leadForm.metodo_pago || null,
+      fuente: leadForm.fuente,
+      notas: leadForm.notas.trim() || null,
+      estado: leadEstadoEdit,
+    }
+    if (modalLead === 'nuevo') {
+      await supabase.from('leads').insert(datos)
+    } else if (modalLead) {
+      await supabase.from('leads').update({ ...datos, updated_at: new Date().toISOString() }).eq('id', modalLead.id)
+    }
+    setModalLead(null)
+    cargar()
+  }
+
+  const cambiarEstadoLead = async (id: string, estado: EstadoLead) => {
+    await supabase.from('leads').update({ estado, updated_at: new Date().toISOString() }).eq('id', id)
+    cargar()
+  }
+
+  const convertirLeadEnOT = async (lead: Lead) => {
+    const prod = catalogo.find(p => p.nombre === lead.producto) ?? catalogo[0]
+    if (!prod) return
+    const { addDiasHabiles } = await import('@/lib/supabase')
+    const fechaEntrega = addDiasHabiles(new Date(), prod.dias_produccion).toISOString().split('T')[0]
+    const id = `STD-${Date.now()}`
+    const { error } = await supabase.from('ordenes_trabajo').insert({
+      id,
+      tipo: 'standard',
+      cliente: lead.nombre,
+      telefono: lead.telefono ?? '',
+      codigo_producto: prod.codigo,
+      producto: prod.nombre,
+      color: lead.color ?? 'Blanco',
+      cantidad: lead.cantidad,
+      estado: 'Pendiente',
+      etapa_actual: 0,
+      fecha_ingreso: new Date().toISOString().split('T')[0],
+      fecha_entrega_comprometida: fechaEntrega,
+      origen: lead.fuente === 'instagram' ? 'Instagram' : lead.fuente === 'whatsapp' ? 'WhatsApp' : 'Manual',
+      precio: prod.precio_base ?? 0,
+      precio_sena: prod.precio_sena ?? 0,
+    })
+    if (!error) {
+      await supabase.from('leads').update({ convertido: true, ot_id: id, estado: 'cerrado', updated_at: new Date().toISOString() }).eq('id', lead.id)
+      await supabase.from('actividad').insert({ ot_id: id, descripcion: `📦 OT creada desde CRM — lead de ${FUENTE_LABEL[lead.fuente]}`, usuario: 'Administración' })
+      cargar()
+    }
+  }
+
   // Despieces CRUD
   const guardarDespiece = async () => {
     if (!productoSeleccionado || !despForm.material.trim()) return
@@ -294,6 +368,7 @@ export default function AdminPage() {
             <Tab id="standard"  label="Standard" />
             <Tab id="medida"    label="A Medida" />
             <Tab id="cotizador" label="Cotizador" badge={presupuestosPendientes.length} />
+            <Tab id="crm"       label="CRM" badge={leads.filter(l => l.estado === 'nuevo').length} />
             <Tab id="catalogo"  label="Catálogo" />
             <Tab id="operarios" label="Operarios" />
             <Tab id="alertas"   label="Alertas" badge={alertas.length} />
@@ -340,6 +415,21 @@ export default function AdminPage() {
                 <button onClick={() => setVista('cotizador')} className="text-amber-400 text-xs underline">
                   Ir al cotizador →
                 </button>
+              </div>
+            )}
+            {leads.length > 0 && (
+              <div>
+                <p className="text-[#666660] text-xs uppercase tracking-wider mb-3">CRM — Leads</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <KPI label="Nuevos" value={leads.filter(l => l.estado === 'nuevo').length}
+                    onClick={() => { setVista('crm'); setFiltroLead('nuevo') }} />
+                  <KPI label="En seguimiento" value={leads.filter(l => ['contactado','interesado','presupuestado'].includes(l.estado)).length}
+                    onClick={() => { setVista('crm'); setFiltroLead(null) }} />
+                  <KPI label="Cerrados" value={leads.filter(l => l.estado === 'cerrado').length} sub="convertidos en OT"
+                    onClick={() => { setVista('crm'); setFiltroLead('cerrado') }} />
+                  <KPI label="Perdidos" value={leads.filter(l => l.estado === 'perdido').length}
+                    onClick={() => { setVista('crm'); setFiltroLead('perdido') }} />
+                </div>
               </div>
             )}
             {/* Top operarios del mes */}
@@ -569,6 +659,104 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* ─── CRM ─── */}
+        {vista === 'crm' && (() => {
+          const estados: EstadoLead[] = ['nuevo', 'contactado', 'interesado', 'presupuestado', 'cerrado', 'perdido']
+          const leadsFiltrados = filtroLead ? leads.filter(l => l.estado === filtroLead) : leads.filter(l => l.estado !== 'perdido')
+          return (
+            <div className="space-y-4">
+              {/* Filtros */}
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => setFiltroLead(null)}
+                  className={`px-3 py-1 rounded-lg text-xs transition-colors ${filtroLead === null ? 'bg-[#C9B99A] text-[#1A1A18] font-medium' : 'bg-[#2E2E2B] text-[#666660] hover:text-white'}`}>
+                  Activos ({leads.filter(l => l.estado !== 'perdido').length})
+                </button>
+                {estados.map(e => (
+                  <button key={e} onClick={() => setFiltroLead(e)}
+                    className={`px-3 py-1 rounded-lg text-xs transition-colors ${filtroLead === e ? 'bg-[#C9B99A] text-[#1A1A18] font-medium' : 'bg-[#2E2E2B] text-[#666660] hover:text-white'}`}>
+                    {ESTADO_LEAD_CONFIG[e].label} ({leads.filter(l => l.estado === e).length})
+                  </button>
+                ))}
+              </div>
+
+              {/* Acción: nuevo lead manual */}
+              <div className="flex items-center justify-between">
+                <p className="text-[#666660] text-xs uppercase tracking-wider">{leadsFiltrados.length} lead{leadsFiltrados.length !== 1 ? 's' : ''}</p>
+                <button onClick={() => { setModalLead('nuevo'); setLeadEstadoEdit('nuevo'); setLeadForm({ nombre: '', telefono: '', barrio: '', producto: 'Zapatero Slim', color: '', cantidad: '1', metodo_pago: '', fuente: 'manual', notas: '' }) }}
+                  className="text-xs bg-[#C9B99A] text-[#1A1A18] font-medium px-4 py-2 rounded-lg hover:bg-[#b5a688]">
+                  + Agregar lead
+                </button>
+              </div>
+
+              {/* Lista */}
+              <div className="space-y-2">
+                {leadsFiltrados.map(lead => {
+                  const cfg = ESTADO_LEAD_CONFIG[lead.estado]
+                  return (
+                    <div key={lead.id} className="bg-[#242421] border border-[#2E2E2B] rounded-xl p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="text-white font-medium text-sm">{lead.nombre}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${cfg.color}`}>{cfg.label}</span>
+                            {lead.convertido && <span className="text-xs text-emerald-400">✓ OT creada</span>}
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[#666660]">
+                            {lead.telefono && <span>📱 {lead.telefono}</span>}
+                            {lead.barrio && <span>📍 {lead.barrio}</span>}
+                            <span>{lead.producto}{lead.color && ` · ${lead.color}`}{lead.cantidad > 1 && ` · x${lead.cantidad}`}</span>
+                            <span>{FUENTE_LABEL[lead.fuente]}</span>
+                          </div>
+                          {lead.notas && <p className="text-[#444441] text-xs mt-1 italic">{lead.notas}</p>}
+                          <p className="text-[#333330] text-xs mt-1">{fmt(lead.created_at)}</p>
+                        </div>
+                        <div className="flex flex-col gap-1.5 flex-shrink-0">
+                          <button onClick={() => { setModalLead(lead); setLeadEstadoEdit(lead.estado); setLeadForm({ nombre: lead.nombre, telefono: lead.telefono ?? '', barrio: lead.barrio ?? '', producto: lead.producto, color: lead.color ?? '', cantidad: String(lead.cantidad), metodo_pago: lead.metodo_pago ?? '', fuente: lead.fuente, notas: lead.notas ?? '' }) }}
+                            className="text-xs bg-[#2E2E2B] text-[#666660] border border-[#3a3a37] px-3 py-1.5 rounded-lg hover:text-white">
+                            Editar
+                          </button>
+                          {!lead.convertido && lead.estado !== 'perdido' && (
+                            <button onClick={() => convertirLeadEnOT(lead)}
+                              className="text-xs bg-[#C9B99A]/10 text-[#C9B99A] border border-[#C9B99A]/30 px-3 py-1.5 rounded-lg hover:bg-[#C9B99A]/20">
+                              → OT
+                            </button>
+                          )}
+                          {lead.estado !== 'perdido' && lead.estado !== 'cerrado' && (
+                            <button onClick={() => cambiarEstadoLead(lead.id, 'perdido')}
+                              className="text-xs text-[#666660] border border-[#3a3a37] px-3 py-1.5 rounded-lg hover:text-red-400">
+                              Perdido
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {/* Avance rápido de estado */}
+                      {lead.estado !== 'cerrado' && lead.estado !== 'perdido' && (
+                        <div className="flex gap-1.5 mt-3 flex-wrap">
+                          {(['contactado', 'interesado', 'presupuestado'] as EstadoLead[])
+                            .filter(e => e !== lead.estado)
+                            .map(e => (
+                              <button key={e} onClick={() => cambiarEstadoLead(lead.id, e)}
+                                className="text-[10px] text-[#444441] border border-[#2E2E2B] px-2 py-1 rounded-lg hover:text-white hover:border-[#444441] transition-colors">
+                                → {ESTADO_LEAD_CONFIG[e].label}
+                              </button>
+                            ))
+                          }
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                {leadsFiltrados.length === 0 && (
+                  <div className="text-center py-10 bg-[#242421] border border-dashed border-[#3a3a37] rounded-xl">
+                    <p className="text-[#666660] text-sm mb-1">Sin leads en este estado</p>
+                    <p className="text-[#444441] text-xs">Los leads de ManyChat aparecen acá automáticamente</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ─── CATÁLOGO ─── */}
         {vista === 'catalogo' && (
@@ -949,6 +1137,94 @@ export default function AdminPage() {
             <div className="flex gap-3">
               <button onClick={() => setModalOperario(null)} className="flex-1 py-2.5 rounded-xl border border-[#3a3a37] text-[#666660] text-sm hover:text-white">Cancelar</button>
               <button onClick={guardarOperario} disabled={!opForm.nombre.trim()} className="flex-1 py-2.5 rounded-xl bg-[#C9B99A] text-[#1A1A18] font-medium text-sm disabled:opacity-40">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lead — crear/editar */}
+      {modalLead && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-end md:items-center justify-center p-4">
+          <div className="bg-[#242421] border border-[#3a3a37] rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+            <p className="font-medium text-white mb-4">{modalLead === 'nuevo' ? 'Nuevo lead' : 'Editar lead'}</p>
+            <div className="space-y-3 mb-6">
+              <div>
+                <label className="text-[#666660] text-xs mb-1 block">Nombre *</label>
+                <input value={leadForm.nombre} onChange={e => setLeadForm(p => ({ ...p, nombre: e.target.value }))}
+                  className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50"
+                  placeholder="Nombre del cliente" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[#666660] text-xs mb-1 block">Teléfono</label>
+                  <input value={leadForm.telefono} onChange={e => setLeadForm(p => ({ ...p, telefono: e.target.value }))}
+                    className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50"
+                    placeholder="2616001122" />
+                </div>
+                <div>
+                  <label className="text-[#666660] text-xs mb-1 block">Barrio / Zona</label>
+                  <input value={leadForm.barrio} onChange={e => setLeadForm(p => ({ ...p, barrio: e.target.value }))}
+                    className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50"
+                    placeholder="Villa Cabrera" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[#666660] text-xs mb-1 block">Color</label>
+                  <select value={leadForm.color} onChange={e => setLeadForm(p => ({ ...p, color: e.target.value }))}
+                    className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50">
+                    <option value="">Sin definir</option>
+                    {COLORES_DISPONIBLES.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[#666660] text-xs mb-1 block">Cantidad</label>
+                  <input type="number" min="1" value={leadForm.cantidad} onChange={e => setLeadForm(p => ({ ...p, cantidad: e.target.value }))}
+                    className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[#666660] text-xs mb-1 block">Método de pago</label>
+                <input value={leadForm.metodo_pago} onChange={e => setLeadForm(p => ({ ...p, metodo_pago: e.target.value }))}
+                  className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50"
+                  placeholder="Efectivo / Go Cuotas / Transferencia" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[#666660] text-xs mb-1 block">Fuente</label>
+                  <select value={leadForm.fuente} onChange={e => setLeadForm(p => ({ ...p, fuente: e.target.value as FuenteLead }))}
+                    className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50">
+                    <option value="manual">Manual</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="web">Web</option>
+                    <option value="manychat">ManyChat</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[#666660] text-xs mb-1 block">Estado</label>
+                  <select value={leadEstadoEdit} onChange={e => setLeadEstadoEdit(e.target.value as EstadoLead)}
+                    className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50">
+                    <option value="nuevo">Nuevo</option>
+                    <option value="contactado">Contactado</option>
+                    <option value="interesado">Interesado</option>
+                    <option value="presupuestado">Presupuestado</option>
+                    <option value="cerrado">Cerrado</option>
+                    <option value="perdido">Perdido</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[#666660] text-xs mb-1 block">Notas internas</label>
+                <textarea value={leadForm.notas} onChange={e => setLeadForm(p => ({ ...p, notas: e.target.value }))}
+                  className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50 resize-none h-16"
+                  placeholder="Obs del cliente, condiciones, etc." />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setModalLead(null)} className="flex-1 py-2.5 rounded-xl border border-[#3a3a37] text-[#666660] text-sm hover:text-white">Cancelar</button>
+              <button onClick={guardarLead} disabled={!leadForm.nombre.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-[#C9B99A] text-[#1A1A18] font-medium text-sm disabled:opacity-40">Guardar</button>
             </div>
           </div>
         </div>
