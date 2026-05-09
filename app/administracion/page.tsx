@@ -4,12 +4,12 @@ import { useRouter } from 'next/navigation'
 import {
   supabase,
   type OrdenTrabajo, type Alerta, type Operario, type EtapaRegistro,
-  type Relevamiento, type PrecioMedida,
+  type Relevamiento, type PrecioMedida, type ProductoCatalogo, type Despiece,
   ESTADO_COLOR_STANDARD, ESTADO_COLOR_MEDIDA, ESTADOS_MEDIDA,
   ETAPAS_PREVENTA, fmt, fmtFecha, fmtPeso, isPreVenta,
 } from '@/lib/supabase'
 
-type Vista = 'resumen' | 'standard' | 'medida' | 'cotizador' | 'operarios' | 'alertas'
+type Vista = 'resumen' | 'standard' | 'medida' | 'cotizador' | 'operarios' | 'alertas' | 'catalogo'
 
 const BADGE_ALERTA: Record<string, { dot: string; card: string; text: string }> = {
   danger:  { dot: 'bg-red-400',   card: 'border-red-900 bg-red-950/20',    text: 'text-red-200'   },
@@ -41,6 +41,13 @@ export default function AdminPage() {
   const [notaAlerta, setNotaAlerta] = useState('')
   const [comentario, setComentario] = useState('')
 
+  // Catálogo / Despieces
+  const [catalogo, setCatalogo] = useState<ProductoCatalogo[]>([])
+  const [productoSeleccionado, setProductoSeleccionado] = useState<ProductoCatalogo | null>(null)
+  const [despieces, setDespieces] = useState<Despiece[]>([])
+  const [modalDespiece, setModalDespiece] = useState<Despiece | null | 'nuevo'>(null)
+  const [despForm, setDespForm] = useState({ material: '', cantidad: '', unidad: 'm²', descripcion: '', es_checklist: true, orden: '' })
+
   // Form states
   const [opForm, setOpForm] = useState({ nombre: '', area: 'ambos', telefono: '' })
   const [precioForm, setPrecioForm] = useState({
@@ -55,7 +62,7 @@ export default function AdminPage() {
 
   const cargar = useCallback(async () => {
     const [
-      { data: o }, { data: a }, { data: ops }, { data: pr }, { data: reg }, { data: rel }
+      { data: o }, { data: a }, { data: ops }, { data: pr }, { data: reg }, { data: rel }, { data: cat }
     ] = await Promise.all([
       supabase.from('ordenes_trabajo').select('*').order('fecha_entrega_comprometida', { ascending: true }),
       supabase.from('alertas').select('*').eq('resuelta', false).order('created_at', { ascending: false }),
@@ -63,6 +70,7 @@ export default function AdminPage() {
       supabase.from('precios_medida').select('*').order('tipo_mueble'),
       supabase.from('etapa_registro').select('*').order('created_at', { ascending: false }).limit(200),
       supabase.from('relevamientos').select('*').order('created_at', { ascending: false }),
+      supabase.from('productos_catalogo').select('*').order('codigo'),
     ])
     if (o) setOts(o)
     if (a) setAlertas(a)
@@ -70,7 +78,13 @@ export default function AdminPage() {
     if (pr) setPrecios(pr)
     if (reg) setRegistros(reg)
     if (rel) setRelevamientos(rel)
+    if (cat) setCatalogo(cat)
     setLoading(false)
+  }, [])
+
+  const cargarDespieces = useCallback(async (productoId: string) => {
+    const { data } = await supabase.from('despieces').select('*').eq('producto_id', productoId).order('orden')
+    if (data) setDespieces(data)
   }, [])
 
   useEffect(() => {
@@ -183,6 +197,39 @@ export default function AdminPage() {
     setModalPresupuesto(null); setPresForm({ precio_final: '', notas: '' }); cargar()
   }
 
+  // Despieces CRUD
+  const guardarDespiece = async () => {
+    if (!productoSeleccionado || !despForm.material.trim()) return
+    const datos = {
+      producto_id: productoSeleccionado.id,
+      material: despForm.material.trim(),
+      cantidad: parseFloat(despForm.cantidad) || 1,
+      unidad: despForm.unidad,
+      descripcion: despForm.descripcion.trim(),
+      es_checklist: despForm.es_checklist,
+      orden: parseInt(despForm.orden) || despieces.length + 1,
+    }
+    if (modalDespiece === 'nuevo') {
+      await supabase.from('despieces').insert(datos)
+    } else if (modalDespiece) {
+      await supabase.from('despieces').update(datos).eq('id', modalDespiece.id)
+    }
+    setModalDespiece(null)
+    setDespForm({ material: '', cantidad: '', unidad: 'm²', descripcion: '', es_checklist: true, orden: '' })
+    cargarDespieces(productoSeleccionado.id)
+  }
+
+  const eliminarDespiece = async (id: string) => {
+    if (!productoSeleccionado) return
+    await supabase.from('despieces').delete().eq('id', id)
+    cargarDespieces(productoSeleccionado.id)
+  }
+
+  const seleccionarProductoCatalogo = (p: ProductoCatalogo) => {
+    setProductoSeleccionado(p)
+    cargarDespieces(p.id)
+  }
+
   // Derivaciones
   const std = ots.filter(o => o.tipo === 'standard')
   const med = ots.filter(o => o.tipo === 'medida')
@@ -247,6 +294,7 @@ export default function AdminPage() {
             <Tab id="standard"  label="Standard" />
             <Tab id="medida"    label="A Medida" />
             <Tab id="cotizador" label="Cotizador" badge={presupuestosPendientes.length} />
+            <Tab id="catalogo"  label="Catálogo" />
             <Tab id="operarios" label="Operarios" />
             <Tab id="alertas"   label="Alertas" badge={alertas.length} />
           </div>
@@ -519,6 +567,103 @@ export default function AdminPage() {
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ─── CATÁLOGO ─── */}
+        {vista === 'catalogo' && (
+          <div className="space-y-4">
+            {!productoSeleccionado ? (
+              <>
+                <p className="text-[#666660] text-xs uppercase tracking-wider">Seleccioná un producto para ver o editar su despiece</p>
+                <div className="space-y-2">
+                  {catalogo.map(p => (
+                    <div key={p.id}
+                      onClick={() => seleccionarProductoCatalogo(p)}
+                      className="bg-[#242421] border border-[#2E2E2B] hover:border-[#C9B99A]/40 rounded-xl p-4 cursor-pointer transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-white font-medium text-sm">{p.nombre}</p>
+                          <p className="text-[#666660] text-xs">{p.categoria} · {p.dias_produccion} días hábiles</p>
+                        </div>
+                        <div className="text-right">
+                          {p.precio_base > 0
+                            ? <p className="text-[#C9B99A] text-sm font-medium">{fmtPeso(p.precio_base)}</p>
+                            : <p className="text-[#444441] text-xs">Sin precio</p>
+                          }
+                          <p className="text-[#444441] text-xs">→ ver despiece</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => { setProductoSeleccionado(null); setDespieces([]) }}
+                    className="text-[#666660] hover:text-white text-sm transition-colors">←</button>
+                  <div>
+                    <p className="text-white font-medium">{productoSeleccionado.nombre}</p>
+                    <p className="text-[#666660] text-xs">
+                      {productoSeleccionado.precio_base > 0 ? fmtPeso(productoSeleccionado.precio_base) : 'Sin precio'}{' '}
+                      {productoSeleccionado.precio_sena > 0 && `· Seña ${fmtPeso(productoSeleccionado.precio_sena)}`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <p className="text-[#666660] text-xs uppercase tracking-wider">Materiales / Despiece</p>
+                  <button
+                    onClick={() => {
+                      setModalDespiece('nuevo')
+                      setDespForm({ material: '', cantidad: '', unidad: 'm²', descripcion: '', es_checklist: true, orden: String(despieces.length + 1) })
+                    }}
+                    className="text-xs bg-[#C9B99A] text-[#1A1A18] font-medium px-4 py-2 rounded-lg hover:bg-[#b5a688]">
+                    + Agregar material
+                  </button>
+                </div>
+
+                {despieces.length > 0 ? (
+                  <div className="space-y-2">
+                    {despieces.map(d => (
+                      <div key={d.id} className="bg-[#242421] border border-[#2E2E2B] rounded-xl p-3 flex items-center gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-white text-sm font-medium">{d.material}</p>
+                            {d.es_checklist && (
+                              <span className="text-[10px] bg-[#C9B99A]/15 text-[#C9B99A] px-1.5 py-0.5 rounded">checklist</span>
+                            )}
+                          </div>
+                          <p className="text-[#666660] text-xs mt-0.5">
+                            {d.cantidad} {d.unidad}{d.descripcion && ` · ${d.descripcion}`}
+                          </p>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => {
+                              setModalDespiece(d)
+                              setDespForm({ material: d.material, cantidad: String(d.cantidad), unidad: d.unidad, descripcion: d.descripcion ?? '', es_checklist: d.es_checklist, orden: String(d.orden) })
+                            }}
+                            className="text-xs text-[#666660] border border-[#3a3a37] px-2.5 py-1 rounded-lg hover:text-white">
+                            Editar
+                          </button>
+                          <button onClick={() => eliminarDespiece(d.id)}
+                            className="text-xs text-[#666660] border border-[#3a3a37] px-2.5 py-1 rounded-lg hover:text-red-400">
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 bg-[#242421] border border-dashed border-[#3a3a37] rounded-xl">
+                    <p className="text-[#666660] text-sm mb-1">Sin materiales cargados</p>
+                    <p className="text-[#444441] text-xs">Agregá los materiales necesarios para fabricar este producto</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
@@ -804,6 +949,68 @@ export default function AdminPage() {
             <div className="flex gap-3">
               <button onClick={() => setModalOperario(null)} className="flex-1 py-2.5 rounded-xl border border-[#3a3a37] text-[#666660] text-sm hover:text-white">Cancelar</button>
               <button onClick={guardarOperario} disabled={!opForm.nombre.trim()} className="flex-1 py-2.5 rounded-xl bg-[#C9B99A] text-[#1A1A18] font-medium text-sm disabled:opacity-40">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Despiece — crear/editar */}
+      {modalDespiece && productoSeleccionado && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-end md:items-center justify-center p-4">
+          <div className="bg-[#242421] border border-[#3a3a37] rounded-2xl w-full max-w-md p-6">
+            <p className="font-medium text-white mb-1">{modalDespiece === 'nuevo' ? 'Agregar material' : 'Editar material'}</p>
+            <p className="text-[#666660] text-xs mb-4">{productoSeleccionado.nombre}</p>
+            <div className="space-y-3 mb-6">
+              <div>
+                <label className="text-[#666660] text-xs mb-1 block">Material *</label>
+                <input value={despForm.material} onChange={e => setDespForm(p => ({ ...p, material: e.target.value }))}
+                  className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50"
+                  placeholder="Ej: MDF 18mm FAPLAC" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[#666660] text-xs mb-1 block">Cantidad *</label>
+                  <input type="number" value={despForm.cantidad} onChange={e => setDespForm(p => ({ ...p, cantidad: e.target.value }))}
+                    className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50"
+                    placeholder="1" />
+                </div>
+                <div>
+                  <label className="text-[#666660] text-xs mb-1 block">Unidad</label>
+                  <select value={despForm.unidad} onChange={e => setDespForm(p => ({ ...p, unidad: e.target.value }))}
+                    className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50">
+                    <option value="m²">m²</option>
+                    <option value="ml">ml</option>
+                    <option value="unidad">unidad</option>
+                    <option value="kg">kg</option>
+                    <option value="par">par</option>
+                    <option value="juego">juego</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[#666660] text-xs mb-1 block">Descripción / nota (opcional)</label>
+                <input value={despForm.descripcion} onChange={e => setDespForm(p => ({ ...p, descripcion: e.target.value }))}
+                  className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50"
+                  placeholder="Ej: tablero principal, color a elección" />
+              </div>
+              <div>
+                <label className="text-[#666660] text-xs mb-1 block">Orden de verificación</label>
+                <input type="number" value={despForm.orden} onChange={e => setDespForm(p => ({ ...p, orden: e.target.value }))}
+                  className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50"
+                  placeholder="1" />
+              </div>
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <div onClick={() => setDespForm(p => ({ ...p, es_checklist: !p.es_checklist }))}
+                  className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${despForm.es_checklist ? 'bg-[#C9B99A]' : 'bg-[#3a3a37]'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${despForm.es_checklist ? 'translate-x-4' : ''}`} />
+                </div>
+                <span className="text-sm text-white">Aparece en checklist del taller</span>
+              </label>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setModalDespiece(null)} className="flex-1 py-2.5 rounded-xl border border-[#3a3a37] text-[#666660] text-sm hover:text-white">Cancelar</button>
+              <button onClick={guardarDespiece} disabled={!despForm.material.trim() || !despForm.cantidad}
+                className="flex-1 py-2.5 rounded-xl bg-[#C9B99A] text-[#1A1A18] font-medium text-sm disabled:opacity-40">Guardar</button>
             </div>
           </div>
         </div>

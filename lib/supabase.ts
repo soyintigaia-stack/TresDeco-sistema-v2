@@ -148,10 +148,12 @@ export interface EtapaRegistro {
 export interface ProductoCatalogo {
   id: string
   codigo: string             // '01', '02', etc.
-  nombre: string             // 'Zapatero Simple', 'Placard 2 puertas'
-  categoria: string          // 'Zapateros', 'Placares', 'Bibliotecas', etc.
+  nombre: string
+  categoria: string
   descripcion: string
   precio_base: number
+  precio_sena: number        // seña requerida al confirmar el pedido
+  recargo_color_pct: number  // % de recargo para colores no estándar (ej: 15)
   dias_produccion: number
   foto_url?: string
   activo: boolean

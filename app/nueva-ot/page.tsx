@@ -52,12 +52,32 @@ export default function NuevaOTPage() {
 
   const productoSeleccionado = catalogo.find(p => p.codigo === form.codigo_producto)
 
+  // Precio sugerido según producto + color
+  const precioSugerido = (() => {
+    if (!productoSeleccionado || !productoSeleccionado.precio_base) return null
+    const base = productoSeleccionado.precio_base
+    const esColorEstandar = form.color === 'Blanco'
+    const recargo = productoSeleccionado.recargo_color_pct ?? 0
+    return esColorEstandar ? base : Math.round(base * (1 + recargo / 100))
+  })()
+  const senaSugerida = productoSeleccionado?.precio_sena ?? 0
+
   useEffect(() => {
     if (productoSeleccionado) {
       const entrega = addDiasHabiles(new Date(), productoSeleccionado.dias_produccion)
       setForm(f => ({ ...f, fecha_entrega_comprometida: entrega.toISOString().split('T')[0] }))
     }
   }, [form.codigo_producto])
+
+  useEffect(() => {
+    if (precioSugerido) {
+      setForm(f => ({
+        ...f,
+        precio: String(precioSugerido),
+        precio_sena: senaSugerida ? String(senaSugerida) : f.precio_sena,
+      }))
+    }
+  }, [form.codigo_producto, form.color])
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
@@ -202,12 +222,24 @@ export default function NuevaOTPage() {
             )}
           </Field>
 
+          {precioSugerido && (
+            <div className="bg-[#C9B99A]/5 border border-[#C9B99A]/20 rounded-xl p-3 text-xs">
+              <p className="text-[#C9B99A] font-medium mb-1">Precio sugerido para {form.color}:</p>
+              <div className="flex gap-4">
+                <span className="text-white">${precioSugerido.toLocaleString('es-AR')} total</span>
+                {senaSugerida > 0 && <span className="text-[#666660]">${senaSugerida.toLocaleString('es-AR')} seña</span>}
+                {form.color !== 'Blanco' && productoSeleccionado?.recargo_color_pct && (
+                  <span className="text-amber-400">+{productoSeleccionado.recargo_color_pct}% color</span>
+                )}
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Precio total ($)">
               <input type="number" value={form.precio} onChange={e => set('precio', e.target.value)}
                 placeholder="0" className={inputClass} />
             </Field>
-            <Field label="Seña abonada ($)">
+            <Field label="Seña requerida ($)">
               <input type="number" value={form.precio_sena} onChange={e => set('precio_sena', e.target.value)}
                 placeholder="0" className={inputClass} />
             </Field>
