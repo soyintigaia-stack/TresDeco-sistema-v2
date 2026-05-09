@@ -124,6 +124,7 @@ export interface Operario {
   id: string
   nombre: string
   area: 'standard' | 'medida' | 'ambos' | 'diseño' | 'instalacion'
+  telefono?: string
   activo: boolean
   created_at: string
 }

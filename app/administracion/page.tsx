@@ -37,10 +37,12 @@ export default function AdminPage() {
   const [modalPresupuesto, setModalPresupuesto] = useState<Relevamiento | null>(null)
   const [modalOperario, setModalOperario] = useState<Operario | null | 'nuevo'>(null)
   const [modalPrecio, setModalPrecio] = useState<PrecioMedida | null>(null)
+  const [modalAlerta, setModalAlerta] = useState<Alerta | null>(null)
+  const [notaAlerta, setNotaAlerta] = useState('')
   const [comentario, setComentario] = useState('')
 
   // Form states
-  const [opForm, setOpForm] = useState({ nombre: '', area: 'ambos' })
+  const [opForm, setOpForm] = useState({ nombre: '', area: 'ambos', telefono: '' })
   const [precioForm, setPrecioForm] = useState({
     precio_m2_materiales: '',
     precio_m2_mano_obra: '',
@@ -116,20 +118,29 @@ export default function AdminPage() {
     setModalAvanzar(null); cargar()
   }
 
-  const resolverAlerta = async (id: string) => {
-    await supabase.from('alertas').update({ resuelta: true }).eq('id', id)
-    cargar()
+  const resolverAlerta = async () => {
+    if (!modalAlerta) return
+    await supabase.from('alertas').update({ resuelta: true }).eq('id', modalAlerta.id)
+    if (modalAlerta.ot_id && notaAlerta.trim()) {
+      await supabase.from('actividad').insert({
+        ot_id: modalAlerta.ot_id,
+        descripcion: `✔ Alerta resuelta — ${notaAlerta.trim()}`,
+        usuario: 'Administración',
+      })
+    }
+    setModalAlerta(null); setNotaAlerta(''); cargar()
   }
 
   // Operarios CRUD
   const guardarOperario = async () => {
     if (!opForm.nombre.trim()) return
+    const datos = { nombre: opForm.nombre.trim(), area: opForm.area, telefono: opForm.telefono.trim() || null }
     if (modalOperario === 'nuevo') {
-      await supabase.from('operarios').insert({ nombre: opForm.nombre.trim(), area: opForm.area })
+      await supabase.from('operarios').insert(datos)
     } else if (modalOperario) {
-      await supabase.from('operarios').update({ nombre: opForm.nombre.trim(), area: opForm.area }).eq('id', modalOperario.id)
+      await supabase.from('operarios').update(datos).eq('id', modalOperario.id)
     }
-    setModalOperario(null); setOpForm({ nombre: '', area: 'ambos' }); cargar()
+    setModalOperario(null); setOpForm({ nombre: '', area: 'ambos', telefono: '' }); cargar()
   }
 
   const toggleOperario = async (op: Operario) => {
@@ -153,7 +164,11 @@ export default function AdminPage() {
   // Presupuesto — aprobar y fijar precio final
   const aprobarPresupuesto = async () => {
     if (!modalPresupuesto) return
-    const precioFinal = parseFloat(presForm.precio_final) || modalPresupuesto.precio_estimado
+    const precioFinal = parseFloat(presForm.precio_final)
+    if (!precioFinal || precioFinal <= 0) {
+      alert('Ingresá el precio final antes de aprobar.')
+      return
+    }
     await supabase.from('relevamientos').update({
       precio_final: precioFinal,
       aprobado_admin: true,
@@ -513,7 +528,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-between">
               <p className="text-[#666660] text-xs uppercase tracking-wider">Personal registrado</p>
               <button
-                onClick={() => { setModalOperario('nuevo'); setOpForm({ nombre: '', area: 'ambos' }) }}
+                onClick={() => { setModalOperario('nuevo'); setOpForm({ nombre: '', area: 'ambos', telefono: '' }) }}
                 className="text-xs bg-[#C9B99A] text-[#1A1A18] font-medium px-4 py-2 rounded-lg hover:bg-[#b5a688]">
                 + Agregar operario
               </button>
@@ -545,11 +560,11 @@ export default function AdminPage() {
                 <div key={op.id} className={`bg-[#242421] border rounded-xl p-4 flex items-center justify-between transition-opacity ${op.activo ? 'border-[#2E2E2B]' : 'border-[#2E2E2B] opacity-50'}`}>
                   <div>
                     <p className="text-white font-medium text-sm">{op.nombre}</p>
-                    <p className="text-[#666660] text-xs capitalize mt-0.5">{op.area}</p>
+                    <p className="text-[#666660] text-xs capitalize mt-0.5">{op.area}{op.telefono && ` · ${op.telefono}`}</p>
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => { setModalOperario(op); setOpForm({ nombre: op.nombre, area: op.area }) }}
+                      onClick={() => { setModalOperario(op); setOpForm({ nombre: op.nombre, area: op.area, telefono: op.telefono ?? '' }) }}
                       className="text-xs bg-[#2E2E2B] text-[#666660] border border-[#3a3a37] px-3 py-1.5 rounded-lg hover:text-white">
                       Editar
                     </button>
@@ -578,9 +593,9 @@ export default function AdminPage() {
                       <p className={`text-sm ${s.text}`}>{a.mensaje}</p>
                       <p className="text-[#444441] text-xs mt-1">{fmt(a.created_at)}</p>
                     </div>
-                    <button onClick={() => resolverAlerta(a.id)}
+                    <button onClick={() => { setModalAlerta(a); setNotaAlerta('') }}
                       className="text-xs text-[#666660] hover:text-white border border-[#3a3a37] px-3 py-1 rounded-lg flex-shrink-0">
-                      Resolver
+                      Ver / Resolver
                     </button>
                   </div>
                 </div>
@@ -725,6 +740,37 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Ver / Resolver alerta */}
+      {modalAlerta && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-end md:items-center justify-center p-4">
+          <div className="bg-[#242421] border border-[#3a3a37] rounded-2xl w-full max-w-md p-6">
+            <p className="font-medium text-white mb-1">Detalle de alerta</p>
+            <p className="text-[#444441] text-xs mb-4">{new Date(modalAlerta.created_at).toLocaleString('es-AR')}</p>
+            <div className={`rounded-xl p-4 mb-4 ${BADGE_ALERTA[modalAlerta.tipo]?.card ?? BADGE_ALERTA.info.card}`}>
+              <div className="flex items-start gap-2">
+                <span className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${BADGE_ALERTA[modalAlerta.tipo]?.dot ?? BADGE_ALERTA.info.dot}`} />
+                <p className={`text-sm ${BADGE_ALERTA[modalAlerta.tipo]?.text ?? BADGE_ALERTA.info.text}`}>{modalAlerta.mensaje}</p>
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="text-[#666660] text-xs mb-1 block">¿Cómo se resolvió? <span className="text-[#444441]">(requerido)</span></label>
+              <textarea
+                value={notaAlerta} onChange={e => setNotaAlerta(e.target.value)}
+                placeholder="Describí la solución aplicada…"
+                className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-sm text-white placeholder-[#444441] resize-none focus:outline-none focus:border-[#C9B99A]/50 h-20"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setModalAlerta(null)} className="flex-1 py-2.5 rounded-xl border border-[#3a3a37] text-[#666660] text-sm hover:text-white">Cancelar</button>
+              <button onClick={resolverAlerta} disabled={!notaAlerta.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-[#C9B99A] text-[#1A1A18] font-medium text-sm disabled:opacity-40">
+                Marcar como resuelta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Operario — crear/editar */}
       {modalOperario && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-end md:items-center justify-center p-4">
@@ -747,6 +793,12 @@ export default function AdminPage() {
                   <option value="diseño">Diseño y Despiece</option>
                   <option value="instalacion">Instalación</option>
                 </select>
+              </div>
+              <div>
+                <label className="text-[#666660] text-xs mb-1 block">Teléfono (WhatsApp)</label>
+                <input value={opForm.telefono} onChange={e => setOpForm(p => ({ ...p, telefono: e.target.value }))}
+                  className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50"
+                  placeholder="Ej: 2616001122" />
               </div>
             </div>
             <div className="flex gap-3">
