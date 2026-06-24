@@ -222,7 +222,7 @@ export interface Configuracion {
 // ─────────────────────────────────────────────
 
 export type EstadoLead = 'nuevo' | 'contactado' | 'interesado' | 'presupuestado' | 'cerrado' | 'perdido'
-export type FuenteLead = 'whatsapp' | 'instagram' | 'web' | 'manual' | 'manychat'
+export type FuenteLead = 'whatsapp' | 'instagram' | 'web' | 'manual' | 'manychat' | 'wati'
 
 export interface Lead {
   id: string
@@ -257,6 +257,7 @@ export const FUENTE_LABEL: Record<FuenteLead, string> = {
   web:       '🌐 Web',
   manual:    '✏️ Manual',
   manychat:  '🤖 ManyChat',
+  wati:      '🤖 WhatsApp Bot',
 }
 
 // ─────────────────────────────────────────────
