@@ -103,13 +103,12 @@ async function marcarLeadCapturado(telefono: string, leadId: string) {
 }
 
 async function enviarMensajeWati(telefono: string, texto: string) {
-  const res = await fetch(`${WATI_URL}/api/v1/sendSessionMessage/${telefono}`, {
+  const url = `${WATI_URL}/api/v1/sendSessionMessage/${telefono}?messageText=${encodeURIComponent(texto)}`
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${WATI_TOKEN}`,
-      'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ messageText: texto }),
   })
   if (!res.ok) {
     console.error('Error enviando mensaje WATI:', await res.text())
