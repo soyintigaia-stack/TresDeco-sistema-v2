@@ -271,6 +271,32 @@ export default function AdminPage() {
     }
   }
 
+  const convertirLeadEnOTMedida = async (lead: Lead) => {
+    const id = `MED-${Date.now()}`
+    const hoy = new Date().toISOString().split('T')[0]
+    const { error } = await supabase.from('ordenes_trabajo').insert({
+      id,
+      tipo: 'medida',
+      cliente: lead.nombre,
+      telefono: lead.telefono ?? '',
+      producto: lead.producto,
+      color: lead.color ?? null,
+      cantidad: lead.cantidad,
+      estado: 'Consulta',
+      etapa_actual: 0,
+      fecha_ingreso: hoy,
+      fecha_entrega_comprometida: hoy,
+      origen: lead.fuente === 'instagram' ? 'Instagram' : lead.fuente === 'whatsapp' ? 'WhatsApp' : 'Manual',
+      precio: 0,
+      observaciones: lead.notas ?? '',
+    })
+    if (!error) {
+      await supabase.from('leads').update({ convertido: true, ot_id: id, estado: 'cerrado', updated_at: new Date().toISOString() }).eq('id', lead.id)
+      await supabase.from('actividad').insert({ ot_id: id, descripcion: `📐 OT A Medida creada desde CRM — ${lead.producto}`, usuario: 'Administración' })
+      cargar()
+    }
+  }
+
   // Despieces CRUD
   const guardarDespiece = async () => {
     if (!productoSeleccionado || !despForm.material.trim()) return
@@ -662,104 +688,174 @@ export default function AdminPage() {
 
         {/* ─── CRM ─── */}
         {vista === 'crm' && (() => {
-          const estados: EstadoLead[] = ['nuevo', 'contactado', 'interesado', 'presupuestado', 'cerrado', 'perdido']
-          const leadsFiltrados = filtroLead ? leads.filter(l => l.estado === filtroLead) : leads.filter(l => l.estado !== 'perdido')
+          const columnas: { estado: EstadoLead; titulo: string }[] = [
+            { estado: 'nuevo',        titulo: 'Nuevos'        },
+            { estado: 'contactado',   titulo: 'Contactados'   },
+            { estado: 'interesado',   titulo: 'Interesados'   },
+            { estado: 'presupuestado',titulo: 'Presupuestados'},
+          ]
+
+          const diasSinMovimiento = (lead: Lead) =>
+            Math.floor((Date.now() - new Date(lead.updated_at).getTime()) / 86400000)
+
+          const esStandard = (lead: Lead) => catalogo.some(p => p.nombre === lead.producto)
+
+          const accionPrimaria = (lead: Lead): { texto: string; accion: () => void } => {
+            const std = esStandard(lead)
+            if (std) {
+              if (lead.estado === 'nuevo') return { texto: '→ Marcar contactado', accion: () => cambiarEstadoLead(lead.id, 'contactado') }
+              if (lead.estado === 'contactado') return { texto: '→ Confirmar interés', accion: () => cambiarEstadoLead(lead.id, 'interesado') }
+              return { texto: 'Seña confirmada → OT', accion: () => convertirLeadEnOT(lead) }
+            } else {
+              if (lead.estado === 'nuevo') return { texto: '→ Coordinar relevamiento', accion: () => cambiarEstadoLead(lead.id, 'contactado') }
+              if (lead.estado === 'contactado') return { texto: '→ Relevamiento hecho', accion: () => cambiarEstadoLead(lead.id, 'interesado') }
+              if (lead.estado === 'interesado') return { texto: '→ Presupuesto enviado', accion: () => cambiarEstadoLead(lead.id, 'presupuestado') }
+              return { texto: 'Seña confirmada → OT Medida', accion: () => convertirLeadEnOTMedida(lead) }
+            }
+          }
+
+          const urgenciaClase = (dias: number) =>
+            dias >= 4 ? 'text-red-500' : dias >= 2 ? 'text-amber-500' : 'text-[#555552]'
+
+          const urgenciaTexto = (dias: number) =>
+            dias === 0 ? 'Hoy' : dias === 1 ? 'Hace 1 día' : `Hace ${dias} días`
+
+          const showArchivo = filtroLead === 'cerrado' || filtroLead === 'perdido'
+
           return (
             <div className="space-y-4">
-              {/* Filtros */}
-              <div className="flex gap-2 flex-wrap">
-                <button onClick={() => setFiltroLead(null)}
-                  className={`px-3 py-1 rounded-lg text-xs transition-colors ${filtroLead === null ? 'bg-[#C9B99A] text-[#1A1A18] font-medium' : 'bg-[#2E2E2B] text-[#666660] hover:text-white'}`}>
-                  Activos ({leads.filter(l => l.estado !== 'perdido').length})
-                </button>
-                {estados.map(e => (
-                  <button key={e} onClick={() => setFiltroLead(e)}
-                    className={`px-3 py-1 rounded-lg text-xs transition-colors ${filtroLead === e ? 'bg-[#C9B99A] text-[#1A1A18] font-medium' : 'bg-[#2E2E2B] text-[#666660] hover:text-white'}`}>
-                    {ESTADO_LEAD_CONFIG[e].label} ({leads.filter(l => l.estado === e).length})
+              {/* Header */}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={() => setFiltroLead(null)}
+                    className={`px-3 py-1 rounded-lg text-xs transition-colors ${filtroLead === null ? 'bg-[#C9B99A] text-[#1A1A18] font-medium' : 'bg-[#2E2E2B] text-[#666660] hover:text-white'}`}>
+                    Pipeline
                   </button>
-                ))}
-              </div>
-
-              {/* Acción: nuevo lead manual */}
-              <div className="flex items-center justify-between">
-                <p className="text-[#666660] text-xs uppercase tracking-wider">{leadsFiltrados.length} lead{leadsFiltrados.length !== 1 ? 's' : ''}</p>
+                  <button onClick={() => setFiltroLead('cerrado')}
+                    className={`px-3 py-1 rounded-lg text-xs transition-colors ${filtroLead === 'cerrado' ? 'bg-[#C9B99A] text-[#1A1A18] font-medium' : 'bg-[#2E2E2B] text-[#666660] hover:text-white'}`}>
+                    Cerrados ({leads.filter(l => l.estado === 'cerrado').length})
+                  </button>
+                  <button onClick={() => setFiltroLead('perdido')}
+                    className={`px-3 py-1 rounded-lg text-xs transition-colors ${filtroLead === 'perdido' ? 'bg-[#C9B99A] text-[#1A1A18] font-medium' : 'bg-[#2E2E2B] text-[#666660] hover:text-white'}`}>
+                    Perdidos ({leads.filter(l => l.estado === 'perdido').length})
+                  </button>
+                </div>
                 <button onClick={() => { setModalLead('nuevo'); setLeadEstadoEdit('nuevo'); setLeadForm({ nombre: '', telefono: '', barrio: '', producto: 'Zapatero Slim', color: '', cantidad: '1', metodo_pago: '', fuente: 'manual', notas: '' }) }}
                   className="text-xs bg-[#C9B99A] text-[#1A1A18] font-medium px-4 py-2 rounded-lg hover:bg-[#b5a688]">
                   + Agregar lead
                 </button>
               </div>
 
-              {/* Lista */}
-              <div className="space-y-2">
-                {leadsFiltrados.map(lead => {
-                  const cfg = ESTADO_LEAD_CONFIG[lead.estado]
-                  return (
-                    <div key={lead.id} className="bg-[#242421] border border-[#2E2E2B] rounded-xl p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span className="text-white font-medium text-sm">{lead.nombre}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${cfg.color}`}>{cfg.label}</span>
-                            {lead.convertido && <span className="text-xs text-emerald-400">✓ OT creada</span>}
-                          </div>
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[#666660]">
-                            {lead.telefono && <span>📱 {lead.telefono}</span>}
-                            {lead.barrio && <span>📍 {lead.barrio}</span>}
-                            <span>{lead.producto}{lead.color && ` · ${lead.color}`}{lead.cantidad > 1 && ` · x${lead.cantidad}`}</span>
-                            <span>{FUENTE_LABEL[lead.fuente]}</span>
-                          </div>
-                          {lead.notas && <p className="text-[#444441] text-xs mt-1 italic">{lead.notas}</p>}
-                          <p className="text-[#333330] text-xs mt-1">{fmt(lead.created_at)}</p>
+              {/* Archivo: cerrados / perdidos */}
+              {showArchivo && (
+                <div className="space-y-2">
+                  {leads.filter(l => l.estado === filtroLead).map(lead => (
+                    <div key={lead.id} className="bg-[#242421] border border-[#2E2E2B] rounded-xl p-4 flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-white text-sm font-medium">{lead.nombre}</span>
+                          {lead.convertido && <span className="text-xs text-emerald-400">✓ OT creada</span>}
                         </div>
-                        <div className="flex flex-col gap-1.5 flex-shrink-0">
-                          {lead.telefono && (
-                            <a href={`https://wa.me/${lead.telefono.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
-                              className="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-3 py-1.5 rounded-lg hover:bg-emerald-900 text-center">
-                              💬 WhatsApp
-                            </a>
-                          )}
-                          <button onClick={() => { setModalLead(lead); setLeadEstadoEdit(lead.estado); setLeadForm({ nombre: lead.nombre, telefono: lead.telefono ?? '', barrio: lead.barrio ?? '', producto: lead.producto, color: lead.color ?? '', cantidad: String(lead.cantidad), metodo_pago: lead.metodo_pago ?? '', fuente: lead.fuente, notas: lead.notas ?? '' }) }}
-                            className="text-xs bg-[#2E2E2B] text-[#666660] border border-[#3a3a37] px-3 py-1.5 rounded-lg hover:text-white">
-                            Editar
-                          </button>
-                          {!lead.convertido && lead.estado !== 'perdido' && (
-                            <button onClick={() => convertirLeadEnOT(lead)}
-                              className="text-xs bg-[#C9B99A]/10 text-[#C9B99A] border border-[#C9B99A]/30 px-3 py-1.5 rounded-lg hover:bg-[#C9B99A]/20">
-                              → OT
-                            </button>
-                          )}
-                          {lead.estado !== 'perdido' && lead.estado !== 'cerrado' && (
-                            <button onClick={() => cambiarEstadoLead(lead.id, 'perdido')}
-                              className="text-xs text-[#666660] border border-[#3a3a37] px-3 py-1.5 rounded-lg hover:text-red-400">
-                              Perdido
-                            </button>
+                        <div className="flex gap-3 text-xs text-[#666660]">
+                          <span>{lead.producto}{lead.color ? ` · ${lead.color}` : ''}</span>
+                          {lead.barrio && <span>📍 {lead.barrio}</span>}
+                          <span>{fmt(lead.created_at)}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => { setModalLead(lead); setLeadEstadoEdit(lead.estado); setLeadForm({ nombre: lead.nombre, telefono: lead.telefono ?? '', barrio: lead.barrio ?? '', producto: lead.producto, color: lead.color ?? '', cantidad: String(lead.cantidad), metodo_pago: lead.metodo_pago ?? '', fuente: lead.fuente, notas: lead.notas ?? '' }) }}
+                        className="text-xs text-[#666660] border border-[#3a3a37] px-3 py-1.5 rounded-lg hover:text-white flex-shrink-0">
+                        Editar
+                      </button>
+                    </div>
+                  ))}
+                  {leads.filter(l => l.estado === filtroLead).length === 0 && (
+                    <div className="text-center py-10 text-[#666660] text-sm">Sin leads en este estado</div>
+                  )}
+                </div>
+              )}
+
+              {/* Kanban */}
+              {!showArchivo && (
+                <div className="grid grid-cols-4 gap-3">
+                  {columnas.map(col => {
+                    const colLeads = leads.filter(l => l.estado === col.estado)
+                    return (
+                      <div key={col.estado} className="bg-[#1E1E1B] rounded-xl p-3 min-w-0">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-[#666660] text-xs font-medium uppercase tracking-wider">{col.titulo}</span>
+                          <span className="text-[11px] bg-[#2E2E2B] text-[#666660] px-2 py-0.5 rounded-full">{colLeads.length}</span>
+                        </div>
+                        <div className="space-y-2">
+                          {colLeads.map(lead => {
+                            const dias = diasSinMovimiento(lead)
+                            const std = esStandard(lead)
+                            const { texto: textoAccion, accion } = accionPrimaria(lead)
+                            return (
+                              <div key={lead.id} className="bg-[#242421] border border-[#2E2E2B] rounded-xl p-3">
+                                {/* Nombre + badge tipo */}
+                                <div className="flex items-start justify-between gap-1 mb-1">
+                                  <span className="text-white text-sm font-medium leading-tight">{lead.nombre}</span>
+                                  {!std && (
+                                    <span className="text-[10px] bg-amber-950 text-amber-400 border border-amber-900 px-1.5 py-0.5 rounded-full flex-shrink-0">medida</span>
+                                  )}
+                                </div>
+                                {/* Producto */}
+                                <p className="text-xs text-[#666660] mb-1 leading-snug">
+                                  {lead.producto}{lead.color ? ` · ${lead.color}` : ''}{lead.cantidad > 1 ? ` · x${lead.cantidad}` : ''}
+                                </p>
+                                {/* Meta */}
+                                <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-[#555552] mb-1">
+                                  {lead.barrio && <span>📍 {lead.barrio}</span>}
+                                  {lead.telefono && <span>📱 {lead.telefono}</span>}
+                                  <span>{FUENTE_LABEL[lead.fuente]}</span>
+                                </div>
+                                {/* Urgencia */}
+                                <p className={`text-[11px] mb-2 ${urgenciaClase(dias)}`}>🕐 {urgenciaTexto(dias)}</p>
+                                {/* Notas */}
+                                {lead.notas && (
+                                  <p className="text-[#444441] text-[11px] italic mb-2 leading-snug line-clamp-2">{lead.notas}</p>
+                                )}
+                                {/* WhatsApp */}
+                                {lead.telefono && (
+                                  <a href={`https://wa.me/${lead.telefono.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-1.5 w-full text-xs text-emerald-400 bg-emerald-950 border border-emerald-900 px-3 py-1.5 rounded-lg hover:bg-emerald-900 mb-1.5">
+                                    💬 WhatsApp
+                                  </a>
+                                )}
+                                {/* Acción primaria */}
+                                {lead.convertido ? (
+                                  <span className="block text-center text-xs text-emerald-400 py-1.5">✓ OT creada</span>
+                                ) : (
+                                  <button onClick={accion}
+                                    className="w-full text-xs bg-[#C9B99A] text-[#1A1A18] font-medium px-3 py-1.5 rounded-lg hover:bg-[#b5a688] mb-1.5">
+                                    {textoAccion}
+                                  </button>
+                                )}
+                                {/* Acciones secundarias */}
+                                <div className="flex gap-1">
+                                  <button onClick={() => { setModalLead(lead); setLeadEstadoEdit(lead.estado); setLeadForm({ nombre: lead.nombre, telefono: lead.telefono ?? '', barrio: lead.barrio ?? '', producto: lead.producto, color: lead.color ?? '', cantidad: String(lead.cantidad), metodo_pago: lead.metodo_pago ?? '', fuente: lead.fuente, notas: lead.notas ?? '' }) }}
+                                    className="flex-1 text-[11px] text-[#666660] border border-[#2E2E2B] px-2 py-1 rounded-lg hover:text-white transition-colors">
+                                    Editar
+                                  </button>
+                                  <button onClick={() => cambiarEstadoLead(lead.id, 'perdido')}
+                                    className="flex-1 text-[11px] text-[#666660] border border-[#2E2E2B] px-2 py-1 rounded-lg hover:text-red-400 transition-colors">
+                                    Perdido
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                          {colLeads.length === 0 && (
+                            <div className="text-center py-6 text-[#333330] text-xs border border-dashed border-[#2A2A27] rounded-xl">
+                              Sin leads
+                            </div>
                           )}
                         </div>
                       </div>
-                      {/* Avance rápido de estado */}
-                      {lead.estado !== 'cerrado' && lead.estado !== 'perdido' && (
-                        <div className="flex gap-1.5 mt-3 flex-wrap">
-                          {(['contactado', 'interesado', 'presupuestado'] as EstadoLead[])
-                            .filter(e => e !== lead.estado)
-                            .map(e => (
-                              <button key={e} onClick={() => cambiarEstadoLead(lead.id, e)}
-                                className="text-[10px] text-[#444441] border border-[#2E2E2B] px-2 py-1 rounded-lg hover:text-white hover:border-[#444441] transition-colors">
-                                → {ESTADO_LEAD_CONFIG[e].label}
-                              </button>
-                            ))
-                          }
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-                {leadsFiltrados.length === 0 && (
-                  <div className="text-center py-10 bg-[#242421] border border-dashed border-[#3a3a37] rounded-xl">
-                    <p className="text-[#666660] text-sm mb-1">Sin leads en este estado</p>
-                    <p className="text-[#444441] text-xs">Los leads de ManyChat aparecen acá automáticamente</p>
-                  </div>
-                )}
-              </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )
         })()}
