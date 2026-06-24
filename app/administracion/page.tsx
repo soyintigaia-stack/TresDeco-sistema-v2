@@ -712,6 +712,12 @@ export default function AdminPage() {
                           <p className="text-[#333330] text-xs mt-1">{fmt(lead.created_at)}</p>
                         </div>
                         <div className="flex flex-col gap-1.5 flex-shrink-0">
+                          {lead.telefono && (
+                            <a href={`https://wa.me/${lead.telefono.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                              className="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-3 py-1.5 rounded-lg hover:bg-emerald-900 text-center">
+                              💬 WhatsApp
+                            </a>
+                          )}
                           <button onClick={() => { setModalLead(lead); setLeadEstadoEdit(lead.estado); setLeadForm({ nombre: lead.nombre, telefono: lead.telefono ?? '', barrio: lead.barrio ?? '', producto: lead.producto, color: lead.color ?? '', cantidad: String(lead.cantidad), metodo_pago: lead.metodo_pago ?? '', fuente: lead.fuente, notas: lead.notas ?? '' }) }}
                             className="text-xs bg-[#2E2E2B] text-[#666660] border border-[#3a3a37] px-3 py-1.5 rounded-lg hover:text-white">
                             Editar
