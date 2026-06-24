@@ -71,7 +71,7 @@ Si tenés nombre del cliente + interés confirmado, completá "lead" así:
   }
 }
 
-IMPORTANTE: Respondé SOLO con el JSON, sin texto antes ni después.`
+IMPORTANTE: Respondé SOLO con el JSON puro. Sin markdown, sin bloques de código, sin texto antes ni después. Empezá directamente con { y terminá con }.`
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -103,9 +103,10 @@ async function marcarLeadCapturado(telefono: string, leadId: string) {
 }
 
 async function enviarMensajeWati(telefono: string, texto: string) {
-  const url = `${WATI_URL}/api/v1/sendSessionMessage/${telefono}?messageText=${encodeURIComponent(texto)}`
-  console.log('WATI send URL:', url)
-  console.log('WATI TOKEN prefix:', WATI_TOKEN.substring(0, 30))
+  // Intentar sin tenant ID (el token ya identifica el tenant)
+  const baseHost = 'https://live.wati.io'
+  const url = `${baseHost}/api/v1/sendSessionMessage/${telefono}?messageText=${encodeURIComponent(texto)}`
+  console.log('WATI send URL (sin tenant):', url.substring(0, 120))
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -190,13 +191,14 @@ export async function POST(req: NextRequest) {
 
     const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
 
-    // Parsear respuesta JSON de Claude
+    // Parsear respuesta JSON de Claude (maneja si viene envuelto en markdown)
     let parsed: { respuesta: string; lead: Record<string, unknown> | null }
     try {
-      parsed = JSON.parse(rawText)
+      const jsonMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)
+      const jsonStr = jsonMatch ? jsonMatch[1].trim() : rawText.trim()
+      parsed = JSON.parse(jsonStr)
     } catch {
-      // Si Claude no devuelve JSON válido, usar el texto directo
-      parsed = { respuesta: rawText, lead: null }
+      parsed = { respuesta: rawText.trim(), lead: null }
     }
 
     const { respuesta, lead } = parsed
