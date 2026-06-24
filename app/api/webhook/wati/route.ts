@@ -104,14 +104,19 @@ async function marcarLeadCapturado(telefono: string, leadId: string) {
 
 async function enviarMensajeWati(telefono: string, texto: string) {
   const url = `${WATI_URL}/api/v1/sendSessionMessage/${telefono}?messageText=${encodeURIComponent(texto)}`
+  console.log('WATI send URL:', url)
+  console.log('WATI TOKEN prefix:', WATI_TOKEN.substring(0, 30))
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${WATI_TOKEN}`,
+      'Content-Type': 'application/json',
     },
   })
+  const resText = await res.text()
+  console.log('WATI response status:', res.status, resText.substring(0, 200))
   if (!res.ok) {
-    console.error('Error enviando mensaje WATI:', await res.text())
+    console.error('Error enviando mensaje WATI:', resText)
   }
 }
 
@@ -141,6 +146,10 @@ async function guardarLead(telefono: string, leadData: Record<string, unknown>) 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
+
+    // Log para debug
+    console.log('WATI webhook body keys:', Object.keys(body))
+    console.log('WATI body sample:', JSON.stringify(body).substring(0, 400))
 
     // Solo procesar mensajes entrantes de texto
     if (body.owner === true || body.type !== 'text' || !body.text) {
