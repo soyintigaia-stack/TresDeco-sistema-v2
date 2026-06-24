@@ -740,10 +740,16 @@ export default function AdminPage() {
                     Perdidos ({leads.filter(l => l.estado === 'perdido').length})
                   </button>
                 </div>
-                <button onClick={() => { setModalLead('nuevo'); setLeadEstadoEdit('nuevo'); setLeadForm({ nombre: '', telefono: '', barrio: '', producto: 'Zapatero Slim', color: '', cantidad: '1', metodo_pago: '', fuente: 'manual', notas: '' }) }}
-                  className="text-xs bg-[#C9B99A] text-[#1A1A18] font-medium px-4 py-2 rounded-lg hover:bg-[#b5a688]">
-                  + Agregar lead
-                </button>
+                <div className="flex gap-2">
+                  <a href="https://docs.google.com/spreadsheets/d/1TaaG04ZHAKara64_1XmyIM8NABWX78uZvgkp7phQntE/edit" target="_blank" rel="noopener noreferrer"
+                    className="text-xs bg-[#2E2E2B] text-[#C9B99A] border border-[#3a3a37] font-medium px-3 py-2 rounded-lg hover:bg-[#3a3a37] flex items-center gap-1.5">
+                    📊 Precios / Catálogo
+                  </a>
+                  <button onClick={() => { setModalLead('nuevo'); setLeadEstadoEdit('nuevo'); setLeadForm({ nombre: '', telefono: '', barrio: '', producto: 'Zapatero Slim', color: '', cantidad: '1', metodo_pago: '', fuente: 'manual', notas: '' }) }}
+                    className="text-xs bg-[#C9B99A] text-[#1A1A18] font-medium px-4 py-2 rounded-lg hover:bg-[#b5a688]">
+                    + Agregar lead
+                  </button>
+                </div>
               </div>
 
               {/* Archivo: cerrados / perdidos */}

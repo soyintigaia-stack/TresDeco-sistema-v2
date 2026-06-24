@@ -12,6 +12,30 @@ const supabase = createClient(
 const WATI_URL  = process.env.WATI_API_URL  ?? 'https://live.wati.io/10188987'
 const WATI_TOKEN = process.env.WATI_API_TOKEN ?? ''
 
+// Google Sheet con catálogo de precios (editable por Dante)
+// Para activar lectura dinámica: compartir el sheet con "Cualquier persona con el enlace puede ver"
+const SHEET_ID = '1TaaG04ZHAKara64_1XmyIM8NABWX78uZvgkp7phQntE'
+const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`
+
+// Cache de precios: se actualiza máximo 1 vez por hora
+let cachedPrecios: string | null = null
+let cacheTimestamp = 0
+const CACHE_TTL = 60 * 60 * 1000 // 1 hora
+
+async function obtenerCatalogoSheet(): Promise<string> {
+  const ahora = Date.now()
+  if (cachedPrecios && ahora - cacheTimestamp < CACHE_TTL) return cachedPrecios
+  try {
+    const res = await fetch(SHEET_CSV_URL, { next: { revalidate: 3600 } })
+    if (res.ok) {
+      cachedPrecios = await res.text()
+      cacheTimestamp = ahora
+      return cachedPrecios
+    }
+  } catch { /* si el sheet no es público, usa el prompt hardcodeado */ }
+  return ''
+}
+
 // ─── Config del negocio ───────────────────────────────────────────────────────
 const BOT_CONFIG = {
   negocio: 'TresDeco Amoblamientos',
@@ -250,11 +274,17 @@ export async function POST(req: NextRequest) {
     // Mantener máximo 20 mensajes para no pasarnos de tokens
     const historialReciente = historial.slice(-20)
 
+    // Intentar leer catálogo desde Google Sheet (si está público, sobreescribe datos del prompt)
+    const catalogoSheet = await obtenerCatalogoSheet()
+    const systemFinal = catalogoSheet
+      ? `${SYSTEM_PROMPT}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCATÁLOGO ACTUALIZADO (Google Sheet — Dante lo actualiza):\n${catalogoSheet}\nSi hay discrepancia entre esta tabla y el catálogo hardcodeado, usá los precios de esta tabla.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+      : SYSTEM_PROMPT
+
     // Llamar a Claude
     const response = await anthropic.messages.create({
       model:      'claude-haiku-4-5-20251001',
       max_tokens: 500,
-      system:     SYSTEM_PROMPT,
+      system:     systemFinal,
       messages:   historialReciente.map(m => ({
         role:    m.role as 'user' | 'assistant',
         content: m.content,
