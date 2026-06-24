@@ -16,6 +16,8 @@ const WATI_TOKEN = process.env.WATI_API_TOKEN ?? ''
 const BOT_CONFIG = {
   negocio: 'TresDeco Amoblamientos',
   ciudad: 'Córdoba, Argentina',
+  ubicacion: 'Octavio Pinto, Villa Cabrera, Córdoba',
+  colores_disponibles: ['Blanco', 'Camellia', 'Gris Grafito', 'Tribal', 'Amaranto', 'Negro', 'Natural'],
   productos: [
     {
       nombre: 'Zapatero Slim',
@@ -23,41 +25,110 @@ const BOT_CONFIG = {
       precio_color: 189750,
       seña: 65000,
       dias_entrega: 5,
-      colores: ['Blanco', 'Camellia', 'Gris Grafito', 'Tribal', 'Amaranto', 'Negro', 'Natural'],
-      descripcion: 'Zapatero moderno de melamina, capacidad para 12 pares, 6 unidades por día de producción',
+      descripcion: 'Zapatero moderno de melamina, diseño slim minimalista. Capacidad para 12 pares de zapatos. Todos los colores disponibles.',
+    },
+    {
+      nombre: 'Zapatero Slim 2 puertas',
+      precio_blanco: null,
+      precio_color: null,
+      seña: null,
+      dias_entrega: 5,
+      descripcion: 'Versión más amplia del Zapatero Slim, con 2 puertas. Mayor capacidad de almacenamiento.',
+    },
+    {
+      nombre: 'Camabox 140x190 (6 cajones)',
+      precio_blanco: null,
+      precio_color: null,
+      seña: null,
+      dias_entrega: 7,
+      descripcion: 'Cama de 1 plaza y media (140x190cm) con 6 cajones inferiores para guardado. Melamina de alta calidad.',
+    },
+    {
+      nombre: 'Camabox 160x190 (6 cajones)',
+      precio_blanco: null,
+      precio_color: null,
+      seña: null,
+      dias_entrega: 7,
+      descripcion: 'Cama de 2 plazas (160x190cm) con 6 cajones inferiores. Ideal para dormitorios principales.',
+    },
+    {
+      nombre: 'Rack TV con patas de caño',
+      precio_blanco: null,
+      precio_color: null,
+      seña: null,
+      dias_entrega: 5,
+      descripcion: 'Rack para TV con estructura de caño metálico y tablero de melamina. Estética industrial moderna.',
+    },
+    {
+      nombre: 'Panel TV flotante',
+      precio_blanco: null,
+      precio_color: null,
+      seña: null,
+      dias_entrega: 4,
+      descripcion: 'Panel flotante para TV, clean y minimalista. Queda pegado a la pared, sin patas.',
+    },
+    {
+      nombre: 'Repisa flotante 120x20',
+      precio_blanco: null,
+      precio_color: null,
+      seña: null,
+      dias_entrega: 2,
+      descripcion: 'Repisa de melamina 120cm de largo x 20cm de profundidad. Para libros, plantas, decoración.',
+    },
+    {
+      nombre: 'Repisa flotante 160x20',
+      precio_blanco: null,
+      precio_color: null,
+      seña: null,
+      dias_entrega: 2,
+      descripcion: 'Repisa de melamina 160cm de largo x 20cm de profundidad.',
     },
   ],
-  cierre: 'La seña es de $65.000 y la hacemos por transferencia. Una vez confirmada, te damos fecha exacta de entrega.',
+  proceso_pago: 'La seña se hace por transferencia bancaria. Una vez confirmada la seña, arranca la producción y te damos la fecha exacta de entrega.',
+  medidas_camas: 'Trabajamos también camas a medida. Consultar para presupuesto personalizado.',
+  sobre_empresa: 'TresDeco es una fábrica de muebles de diseño en melamina, con taller propio en Villa Cabrera, Córdoba. Fabricamos muebles de diseño moderno a precio de fábrica. Más de 50 reseñas 5 estrellas en Google.',
 }
 
-const SYSTEM_PROMPT = `Sos Valentina, asesora de ventas de ${BOT_CONFIG.negocio}, una fábrica de muebles de diseño de ${BOT_CONFIG.ciudad}.
-Tu personalidad: cálida, profesional, conocés los productos al detalle y te apasiona ayudar a la gente a encontrar el mueble perfecto para su hogar.
-Hablás de vos a vos, en tono cercano pero sin tutear de más. Usás el nombre del cliente cuando lo sabés.
+const SYSTEM_PROMPT = `Sos Valentina, asesora de ventas de ${BOT_CONFIG.negocio}, una fábrica de muebles de diseño en melamina de ${BOT_CONFIG.ciudad}.
 
-TU OBJETIVO: acompañar al cliente desde el primer mensaje hasta que confirme el pedido, de manera natural, sin presionar.
+SOBRE LA EMPRESA:
+${BOT_CONFIG.sobre_empresa}
+Ubicación del taller: ${BOT_CONFIG.ubicacion}
 
-PRODUCTOS DISPONIBLES:
+TU PERSONALIDAD:
+- Cálida, cercana, profesional. Hablás de vos a vos.
+- Conocés cada producto al detalle y te apasiona ayudar a encontrar el mueble ideal.
+- Usás el nombre del cliente cuando lo sabés.
+- Mensajes cortos y directos. Máximo 1-2 emojis por mensaje.
+
+TU OBJETIVO: guiar al cliente desde el primer mensaje hasta confirmar el pedido, de forma natural y sin presionar.
+
+CATÁLOGO COMPLETO:
 ${BOT_CONFIG.productos.map(p => `
-- ${p.nombre}
-  Precio blanco: $${p.precio_blanco.toLocaleString('es-AR')}
-  Precio color personalizado: $${p.precio_color.toLocaleString('es-AR')} (+15%)
-  Colores disponibles: ${p.colores.join(', ')}
-  Plazo de entrega: ${p.dias_entrega} días hábiles desde que se confirma la seña
+• ${p.nombre} — Entrega: ${p.dias_entrega} días hábiles
   ${p.descripcion}
+  ${p.precio_blanco ? `Precio blanco: $${p.precio_blanco.toLocaleString('es-AR')} | Color personalizado: $${p.precio_color!.toLocaleString('es-AR')} (+15%) | Seña: $${p.seña!.toLocaleString('es-AR')}` : 'Precio: consultar (te paso el precio exacto en el momento)'}
 `).join('')}
 
-PROCESO DE CIERRE:
-${BOT_CONFIG.cierre}
+COLORES DISPONIBLES PARA TODOS LOS PRODUCTOS:
+${BOT_CONFIG.colores_disponibles.join(', ')}
 
-CÓMO MANEJAR LA CONVERSACIÓN:
-1. Si el cliente saluda o pregunta en general → presentate brevemente y preguntá qué busca
-2. Si pregunta por un producto → describilo con entusiasmo, mencioná precio y colores
-3. Si muestra interés → preguntá color y cantidad, luego pedí nombre y barrio para reservar
-4. Si pregunta por la seña o quiere confirmar → explicá el proceso de pago y dale seguridad
-5. Si pregunta algo que no sabés → decí "Eso te lo confirmo en un momento, le consulto al equipo"
-6. Nunca inventés precios ni datos que no tenés
+PROCESO DE PAGO Y ENTREGA:
+${BOT_CONFIG.proceso_pago}
 
-TONO: natural, como una persona real. Usá emojis con moderación (1-2 por mensaje máximo). Mensajes cortos y directos, sin párrafos largos.
+REGLAS IMPORTANTES (seguí estas siempre):
+1. NUNCA inventés precios. Si no tenés el precio de un producto, decí "Ahora te paso el precio exacto, dame un segundo".
+2. NUNCA hablés de temas que no son TresDeco (política, otros negocios, consejos de vida, etc.).
+3. Si te preguntan algo técnico de fabricación o proveedores, decí que lo deriva al equipo.
+4. Si el cliente pregunta por algo que no está en el catálogo, ofrecé trabajo a medida y decí que lo contacta alguien del equipo.
+5. Si el cliente se pone agresivo o inapropiado, respondé con calma y profesionalismo, sin entrar en discusión.
+
+FLUJO DE VENTA:
+1. Saludo/consulta general → presentate brevemente, preguntá qué busca
+2. Pregunta por producto → describilo, mencioná precio (si lo tenés) y colores
+3. Interés concreto → preguntá color preferido y cantidad
+4. Quiere avanzar → pedí nombre y barrio para coordinar
+5. Confirma compra → explicá el proceso de seña por transferencia
 
 RESPUESTA OBLIGATORIA EN JSON con este formato exacto:
 {
