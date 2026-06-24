@@ -800,11 +800,11 @@ export default function AdminPage() {
                                   )}
                                 </div>
                                 {/* Producto */}
-                                <p className="text-xs text-[#666660] mb-1 leading-snug">
+                                <p className="text-xs text-[#999994] mb-1 leading-snug">
                                   {lead.producto}{lead.color ? ` · ${lead.color}` : ''}{lead.cantidad > 1 ? ` · x${lead.cantidad}` : ''}
                                 </p>
                                 {/* Meta */}
-                                <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-[#555552] mb-1">
+                                <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-[#888780] mb-1">
                                   {lead.barrio && <span>📍 {lead.barrio}</span>}
                                   {lead.telefono && <span>📱 {lead.telefono}</span>}
                                   <span>{FUENTE_LABEL[lead.fuente]}</span>
@@ -813,7 +813,7 @@ export default function AdminPage() {
                                 <p className={`text-[11px] mb-2 ${urgenciaClase(dias)}`}>🕐 {urgenciaTexto(dias)}</p>
                                 {/* Notas */}
                                 {lead.notas && (
-                                  <p className="text-[#444441] text-[11px] italic mb-2 leading-snug line-clamp-2">{lead.notas}</p>
+                                  <p className="text-[#888780] text-[11px] italic mb-2 leading-snug line-clamp-2">{lead.notas}</p>
                                 )}
                                 {/* WhatsApp */}
                                 {lead.telefono && (
@@ -834,11 +834,11 @@ export default function AdminPage() {
                                 {/* Acciones secundarias */}
                                 <div className="flex gap-1">
                                   <button onClick={() => { setModalLead(lead); setLeadEstadoEdit(lead.estado); setLeadForm({ nombre: lead.nombre, telefono: lead.telefono ?? '', barrio: lead.barrio ?? '', producto: lead.producto, color: lead.color ?? '', cantidad: String(lead.cantidad), metodo_pago: lead.metodo_pago ?? '', fuente: lead.fuente, notas: lead.notas ?? '' }) }}
-                                    className="flex-1 text-[11px] text-[#666660] border border-[#2E2E2B] px-2 py-1 rounded-lg hover:text-white transition-colors">
+                                    className="flex-1 text-[11px] text-[#888780] border border-[#3a3a37] px-2 py-1 rounded-lg hover:text-white transition-colors">
                                     Editar
                                   </button>
                                   <button onClick={() => cambiarEstadoLead(lead.id, 'perdido')}
-                                    className="flex-1 text-[11px] text-[#666660] border border-[#2E2E2B] px-2 py-1 rounded-lg hover:text-red-400 transition-colors">
+                                    className="flex-1 text-[11px] text-[#888780] border border-[#3a3a37] px-2 py-1 rounded-lg hover:text-red-400 transition-colors">
                                     Perdido
                                   </button>
                                 </div>
