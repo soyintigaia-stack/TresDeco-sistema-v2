@@ -103,19 +103,19 @@ async function marcarLeadCapturado(telefono: string, leadId: string) {
 }
 
 async function enviarMensajeWati(telefono: string, texto: string) {
-  // Intentar sin tenant ID (el token ya identifica el tenant)
-  const baseHost = 'https://live.wati.io'
-  const url = `${baseHost}/api/v1/sendSessionMessage/${telefono}?messageText=${encodeURIComponent(texto)}`
-  console.log('WATI send URL (sin tenant):', url.substring(0, 120))
+  const url = `${WATI_URL}/api/v1/sendSessionMessage/${telefono}`
+  console.log('WATI send URL:', url)
+  const body = new URLSearchParams({ messageText: texto })
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${WATI_TOKEN}`,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
+    body: body.toString(),
   })
   const resText = await res.text()
-  console.log('WATI response status:', res.status, resText.substring(0, 200))
+  console.log('WATI response status:', res.status, resText.substring(0, 300))
   if (!res.ok) {
     console.error('Error enviando mensaje WATI:', resText)
   }
