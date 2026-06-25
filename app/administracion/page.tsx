@@ -12,7 +12,7 @@ import {
   COLORES_DISPONIBLES,
 } from '@/lib/supabase'
 
-type Vista = 'resumen' | 'standard' | 'medida' | 'cotizador' | 'catalogo' | 'crm' | 'operarios' | 'alertas'
+type Vista = 'resumen' | 'standard' | 'medida' | 'cotizador' | 'catalogo' | 'crm' | 'remarketing' | 'operarios' | 'alertas'
 
 const BADGE_ALERTA: Record<string, { dot: string; card: string; text: string }> = {
   danger:  { dot: 'bg-red-400',   card: 'border-red-900 bg-red-950/20',    text: 'text-red-200'   },
@@ -54,6 +54,11 @@ export default function AdminPage() {
   })
   const [leadEstadoEdit, setLeadEstadoEdit] = useState<EstadoLead>('nuevo')
 
+  // Remarketing
+  const [convs, setConvs] = useState<any[]>([])
+  const [enviandoRemark, setEnviandoRemark] = useState<string | null>(null)
+  const [remarkMsg, setRemarkMsg] = useState<Record<string, string>>({})
+
   // Catálogo / Despieces
   const [catalogo, setCatalogo] = useState<ProductoCatalogo[]>([])
   const [productoSeleccionado, setProductoSeleccionado] = useState<ProductoCatalogo | null>(null)
@@ -75,7 +80,7 @@ export default function AdminPage() {
 
   const cargar = useCallback(async () => {
     const [
-      { data: o }, { data: a }, { data: ops }, { data: pr }, { data: reg }, { data: rel }, { data: cat }, { data: lds }
+      { data: o }, { data: a }, { data: ops }, { data: pr }, { data: reg }, { data: rel }, { data: cat }, { data: lds }, { data: cv }
     ] = await Promise.all([
       supabase.from('ordenes_trabajo').select('*').order('fecha_entrega_comprometida', { ascending: true }),
       supabase.from('alertas').select('*').eq('resuelta', false).order('created_at', { ascending: false }),
@@ -85,6 +90,7 @@ export default function AdminPage() {
       supabase.from('relevamientos').select('*').order('created_at', { ascending: false }),
       supabase.from('productos_catalogo').select('*').order('codigo'),
       supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(300),
+      supabase.from('conversaciones_bot').select('telefono,nombre,updated_at,mensajes').order('updated_at', { ascending: false }).limit(300),
     ])
     if (o) setOts(o)
     if (a) setAlertas(a)
@@ -94,6 +100,7 @@ export default function AdminPage() {
     if (rel) setRelevamientos(rel)
     if (cat) setCatalogo(cat)
     if (lds) setLeads(lds)
+    if (cv) setConvs(cv)
     setLoading(false)
   }, [])
 
@@ -394,9 +401,10 @@ export default function AdminPage() {
             <Tab id="standard"  label="Standard" />
             <Tab id="medida"    label="A Medida" />
             <Tab id="cotizador" label="Cotizador" badge={presupuestosPendientes.length} />
-            <Tab id="crm"       label="CRM" badge={leads.filter(l => l.estado === 'nuevo').length} />
-            <Tab id="catalogo"  label="Catálogo" />
-            <Tab id="operarios" label="Operarios" />
+            <Tab id="crm"          label="CRM" badge={leads.filter(l => l.estado === 'nuevo').length} />
+            <Tab id="remarketing"  label="Remarketing" badge={leads.filter(l => ['nuevo','contactado','interesado'].includes(l.estado) && convs.find(c => c.telefono === l.telefono && new Date(c.updated_at) < new Date(Date.now() - 24*60*60*1000))).length || undefined} />
+            <Tab id="catalogo"     label="Catálogo" />
+            <Tab id="operarios"    label="Operarios" />
             <Tab id="alertas"   label="Alertas" badge={alertas.length} />
           </div>
         </div>
@@ -862,6 +870,117 @@ export default function AdminPage() {
                   })}
                 </div>
               )}
+            </div>
+          )
+        })()}
+
+        {/* ─── REMARKETING ─── */}
+        {vista === 'remarketing' && (() => {
+          const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
+          const abandonados = leads
+            .filter(l => ['nuevo', 'contactado', 'interesado'].includes(l.estado))
+            .map(l => {
+              const conv = convs.find(c => c.telefono === l.telefono)
+              if (!conv) return null
+              const ultima = new Date(conv.updated_at)
+              if (ultima >= hace24h) return null
+              const msgs: any[] = conv.mensajes ?? []
+              const ultimoMsg = msgs.filter(m => m.role === 'user').slice(-1)[0]?.content ?? ''
+              const horasDesde = Math.floor((Date.now() - ultima.getTime()) / 3600000)
+              return { lead: l, conv, ultimoMsg, horasDesde }
+            })
+            .filter(Boolean) as { lead: Lead; conv: any; ultimoMsg: string; horasDesde: number }[]
+
+          const APP_URL = process.env.NEXT_PUBLIC_APP_URL || ''
+
+          return (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold text-lg">Remarketing</h2>
+                  <p className="text-[#666] text-xs mt-0.5">Clientes que mostraron interés y no completaron la compra — sin actividad hace más de 24hs</p>
+                </div>
+                <span className="text-xs bg-[#2E2E2B] px-3 py-1 rounded-full text-[#C9B99A]">{abandonados.length} pendientes</span>
+              </div>
+
+              {abandonados.length === 0 && (
+                <div className="text-center py-16 text-[#555]">
+                  <p className="text-2xl mb-2">🎉</p>
+                  <p className="text-sm">No hay conversaciones abandonadas. ¡Todo al día!</p>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {abandonados.map(({ lead, ultimoMsg, horasDesde }) => {
+                  const msgPredeterminado = remarkMsg[lead.id] ?? `Hola ${lead.nombre?.split(' ')[0] || ''}! 👋 Soy Valentina de TresDeco. Vi que estuviste consultando por el *${lead.producto}*. ¿Pudiste pensarlo? Estoy acá para cualquier duda o para ayudarte a reservarlo.`
+                  return (
+                    <div key={lead.id} className="bg-[#2E2E2B] rounded-xl p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{lead.nombre || 'Sin nombre'}</span>
+                            <span className="text-xs text-[#C9B99A] bg-[#C9B99A]/10 px-2 py-0.5 rounded-full">{lead.producto}</span>
+                          </div>
+                          <p className="text-[#888] text-xs mt-0.5">
+                            {lead.telefono} · {lead.barrio || 'sin barrio'} · hace {horasDesde}hs sin actividad
+                          </p>
+                          {ultimoMsg && (
+                            <p className="text-[#666] text-xs mt-1 italic truncate max-w-xs">"{ultimoMsg}"</p>
+                          )}
+                        </div>
+                        <a
+                          href={`https://wa.me/${lead.telefono}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-[#25D366] hover:underline shrink-0"
+                        >
+                          Abrir chat
+                        </a>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-xs text-[#888]">Mensaje a enviar:</p>
+                        <textarea
+                          value={msgPredeterminado}
+                          onChange={e => setRemarkMsg(prev => ({ ...prev, [lead.id]: e.target.value }))}
+                          rows={3}
+                          className="w-full bg-[#1A1A18] text-sm text-white rounded-lg px-3 py-2 border border-[#3a3a37] resize-none focus:outline-none focus:border-[#C9B99A]"
+                        />
+                        <div className="flex gap-2 justify-end">
+                          {lead.producto && (
+                            <a
+                              href={`${APP_URL}/p/${lead.producto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs px-3 py-1.5 rounded-lg border border-[#3a3a37] text-[#C9B99A] hover:bg-[#3a3a37]"
+                            >
+                              Ver página
+                            </a>
+                          )}
+                          <button
+                            disabled={enviandoRemark === lead.id}
+                            onClick={async () => {
+                              setEnviandoRemark(lead.id)
+                              try {
+                                await fetch('/api/remarketing', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ telefono: lead.telefono, mensaje: msgPredeterminado }),
+                                })
+                                alert(`Mensaje enviado a ${lead.nombre}`)
+                              } catch { alert('Error al enviar') }
+                              setEnviandoRemark(null)
+                            }}
+                            className="text-xs bg-[#C9B99A] text-[#1A1A18] font-medium px-4 py-1.5 rounded-lg hover:bg-[#b5a688] disabled:opacity-50"
+                          >
+                            {enviandoRemark === lead.id ? 'Enviando...' : 'Enviar por WhatsApp'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )
         })()}
