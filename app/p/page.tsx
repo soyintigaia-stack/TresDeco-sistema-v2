@@ -62,7 +62,7 @@ const CATEGORIA_ICON: Record<string, string> = {
 export default async function CatalogoPage() {
   const productos = await getProductos()
 
-  const categorias = [...new Set(productos.map(p => p.categoria))]
+  const categorias = Array.from(new Set(productos.map(p => p.categoria)))
 
   return (
     <div className="min-h-screen bg-[#1A1A18] text-white">
