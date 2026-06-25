@@ -288,7 +288,7 @@ export async function POST(req: NextRequest) {
       // Actualizar lead a 'presupuestado' si existe
       if (conv?.lead_id) {
         await supabase.from('leads')
-          .update({ estado: 'presupuestado', notas: supabase.rpc ? undefined : undefined })
+          .update({ estado: 'presupuestado' })
           .eq('id', conv.lead_id)
           .eq('estado', 'interesado')
       }
