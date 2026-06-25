@@ -18,17 +18,28 @@ type Producto = {
 }
 
 // Fotos por código de producto (se completan con Imgur hasta tener CDN propio)
+const FOTOS_CAM_CHICA = [
+  'https://i.imgur.com/TNTyuBV.jpeg',
+]
+const FOTOS_CAM_GRANDE = [
+  'https://i.imgur.com/oOs57GS.jpeg',
+  'https://i.imgur.com/DOOb9Wz.jpeg',
+  'https://i.imgur.com/JtOiphW.jpeg',
+]
+
 const FOTOS: Record<string, string[]> = {
   'ZAP-01': [
     'https://i.imgur.com/17rKzZ3.jpeg',
     'https://i.imgur.com/gZEjq1l.jpeg',
     'https://i.imgur.com/IkpyhMy.jpeg',
   ],
-  'CAM-04': [
-    'https://i.imgur.com/oOs57GS.jpeg',
-    'https://i.imgur.com/DOOb9Wz.jpeg',
-    'https://i.imgur.com/JtOiphW.jpeg',
-  ],
+  'CAM-01': FOTOS_CAM_CHICA,
+  'CAM-02': FOTOS_CAM_CHICA,
+  'CAM-03': FOTOS_CAM_GRANDE,
+  'CAM-04': FOTOS_CAM_GRANDE,
+  'CAM-05': FOTOS_CAM_GRANDE,
+  'CAM-06': FOTOS_CAM_GRANDE,
+  'CAM-07': FOTOS_CAM_GRANDE,
   'CAM-04 COMBO': [
     'https://i.imgur.com/RxSIPIp.jpeg',
     'https://i.imgur.com/SLF6OyW.jpeg',
@@ -161,6 +172,11 @@ export default async function ProductoPage({ params }: { params: Promise<{ slug:
               <p className="text-xs">Foto próximamente</p>
             </div>
           </div>
+        )}
+
+        {/* Nota foto referencial */}
+        {p.imagenes && p.imagenes.length > 0 && (
+          <p className="text-[#555] text-xs text-center -mt-1">Foto referencial · fabricamos en todas las medidas disponibles</p>
         )}
 
         {/* Nombre */}
