@@ -24,6 +24,11 @@ const FOTOS: Record<string, string[]> = {
     'https://i.imgur.com/gZEjq1l.jpeg',
     'https://i.imgur.com/IkpyhMy.jpeg',
   ],
+  'CAM-04': [
+    'https://i.imgur.com/oOs57GS.jpeg',
+    'https://i.imgur.com/DOOb9Wz.jpeg',
+    'https://i.imgur.com/JtOiphW.jpeg',
+  ],
   'CAM-04 COMBO': [
     'https://i.imgur.com/RxSIPIp.jpeg',
     'https://i.imgur.com/SLF6OyW.jpeg',
