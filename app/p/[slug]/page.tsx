@@ -18,6 +18,11 @@ type Producto = {
 }
 
 // Fotos por código de producto (se completan con Imgur hasta tener CDN propio)
+const FOTOS_ZAP = [
+  'https://i.imgur.com/17rKzZ3.jpeg',
+  'https://i.imgur.com/gZEjq1l.jpeg',
+  'https://i.imgur.com/IkpyhMy.jpeg',
+]
 const FOTOS_CAM_CHICA = [
   'https://i.imgur.com/TNTyuBV.jpeg',
 ]
@@ -28,11 +33,8 @@ const FOTOS_CAM_GRANDE = [
 ]
 
 const FOTOS: Record<string, string[]> = {
-  'ZAP-01': [
-    'https://i.imgur.com/17rKzZ3.jpeg',
-    'https://i.imgur.com/gZEjq1l.jpeg',
-    'https://i.imgur.com/IkpyhMy.jpeg',
-  ],
+  'ZAP-01': FOTOS_ZAP,
+  'ZAP-02': FOTOS_ZAP,
   'CAM-01': FOTOS_CAM_CHICA,
   'CAM-02': FOTOS_CAM_CHICA,
   'CAM-03': FOTOS_CAM_GRANDE,
