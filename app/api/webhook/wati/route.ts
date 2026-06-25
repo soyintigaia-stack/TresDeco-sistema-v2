@@ -149,6 +149,27 @@ Sin lead capturado aún:
 Cuando tengas nombre + producto + interés claro:
 {"respuesta": "el mensaje para el cliente", "lead": {"nombre": "nombre", "producto": "producto", "color": "color o null", "cantidad": 1, "barrio": "barrio o null", "metodo_pago": "efectivo / tarjeta / a confirmar / null", "notas": "color, pago, medidas, si es a medida, link enviado, etc."}}`
 
+// ─── Horario de atención (Argentina UTC-3, sin DST) ───────────────────────────
+const HORARIO_TEXTO = 'lunes a viernes de 9 a 18hs y sábados de 9 a 13hs'
+
+function estaEnHorario(): boolean {
+  const utcMs = Date.now()
+  const argMs = utcMs + (-3 * 60 * 60 * 1000)
+  const arg = new Date(argMs)
+  const dia = arg.getUTCDay() // 0=dom
+  const h = arg.getUTCHours() + arg.getUTCMinutes() / 60
+  if (dia >= 1 && dia <= 5) return h >= 9 && h < 18
+  if (dia === 6) return h >= 9 && h < 13
+  return false
+}
+
+function esComprobante(msg: string): boolean {
+  const m = msg.toLowerCase()
+  return m.includes('comprobante') ||
+    (m.includes('transfer') && (m.includes('seña') || m.includes('sena') || m.includes('reserv'))) ||
+    (m.includes('ya pague') || m.includes('ya pagué') || m.includes('ya señé') || m.includes('ya sene'))
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function getConversacion(telefono: string) {
@@ -229,18 +250,60 @@ export async function POST(req: NextRequest) {
     console.log('WATI webhook body keys:', Object.keys(body))
     console.log('WATI body sample:', JSON.stringify(body).substring(0, 400))
 
-    // Solo procesar mensajes entrantes de texto
-    if (body.owner === true || body.type !== 'text' || !body.text) {
+    // Detectar imagen como posible comprobante
+    const esImagen = body.owner !== true && body.type === 'image'
+
+    // Solo procesar mensajes entrantes de texto o imágenes
+    if (body.owner === true || (body.type !== 'text' && !esImagen)) {
+      return NextResponse.json({ ok: true })
+    }
+    if (esImagen && !body.text && !body.caption) {
+      // imagen sin texto: puede ser comprobante si hay lead activo, lo manejamos abajo
+    }
+
+    const telefono       = body.waId as string
+    const nombre         = (body.senderName ?? body.messageContact?.name ?? '') as string
+    const mensajeCliente = ((body.text ?? body.caption ?? '') as string).trim()
+    const nombreCorto    = nombre?.split(' ')[0] || ''
+
+    if (!telefono) return NextResponse.json({ ok: true })
+
+    // ── Flujo comprobante ────────────────────────────────────────────────────
+    if (esImagen || (mensajeCliente && esComprobante(mensajeCliente))) {
+      const conv = await getConversacion(telefono)
+      const dentroHorario = estaEnHorario()
+
+      const respuesta = dentroHorario
+        ? `¡Perfecto${nombreCorto ? ', ' + nombreCorto : ''}! 🎉 Recibimos tu comprobante. El equipo lo va a verificar en los próximos minutos y te escribimos para confirmar y coordinar la entrega.`
+        : `¡Hola${nombreCorto ? ' ' + nombreCorto : ''}! 🎉 Recibimos tu comprobante. Nuestro horario de atención es ${HORARIO_TEXTO}. En cuanto abramos confirmamos la transferencia y te escribimos para coordinar todo.`
+
+      // Crear alerta urgente en el admin
+      const leadInfo = conv?.lead_id ? ` · Lead ID: ${conv.lead_id}` : ''
+      await supabase.from('alertas').insert({
+        tipo: 'danger',
+        mensaje: `💰 SEÑA RECIBIDA — ${nombre || telefono} (${telefono})${leadInfo}. Verificar transferencia en alias tresdeco.nx.ars.`,
+        resuelta: false,
+      })
+
+      // Actualizar lead a 'presupuestado' si existe
+      if (conv?.lead_id) {
+        await supabase.from('leads')
+          .update({ estado: 'presupuestado', notas: supabase.rpc ? undefined : undefined })
+          .eq('id', conv.lead_id)
+          .eq('estado', 'interesado')
+      }
+
+      // Guardar en historial
+      const historial = conv?.mensajes ?? []
+      historial.push({ role: 'user', content: esImagen ? '[Imagen enviada — posible comprobante de transferencia]' : mensajeCliente })
+      historial.push({ role: 'assistant', content: respuesta })
+      await guardarMensaje(telefono, nombre, historial.slice(-20))
+      await enviarMensajeWati(telefono, respuesta)
+
       return NextResponse.json({ ok: true })
     }
 
-    const telefono   = body.waId as string
-    const nombre     = (body.senderName ?? body.messageContact?.name ?? '') as string
-    const mensajeCliente = (body.text as string).trim()
-
-    if (!telefono || !mensajeCliente) {
-      return NextResponse.json({ ok: true })
-    }
+    if (!mensajeCliente) return NextResponse.json({ ok: true })
 
     // Obtener historial de conversación
     const conv = await getConversacion(telefono)

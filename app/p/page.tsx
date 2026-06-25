@@ -8,45 +8,47 @@ export const metadata: Metadata = {
 
 const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/1TaaG04ZHAKara64_1XmyIM8NABWX78uZvgkp7phQntE/export?format=csv&gid=0'
 
-function slugify(str: string) {
-  return str
-    .toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+function parseCSVRow(line: string): string[] {
+  const fields: string[] = []; let cur = ''; let inQ = false
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]
+    if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++ } else inQ = !inQ }
+    else if (c === ',' && !inQ) { fields.push(cur.trim()); cur = '' }
+    else cur += c
+  }
+  fields.push(cur.trim()); return fields
 }
+function slugify(s: string) { return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') }
+function parseMoney(v: string): number { return parseInt((v||'').replace(/[^0-9]/g,'')) || 0 }
+function formatPeso(n: number) { return n > 0 ? `$${n.toLocaleString('es-AR')}` : '—' }
 
-function parseMoney(val: string): number {
-  if (!val) return 0
-  return parseInt(val.replace(/[^0-9]/g, '')) || 0
-}
-
-function formatPeso(n: number) {
-  return n > 0 ? `$${n.toLocaleString('es-AR')}` : '—'
-}
+const FALLBACK_LISTA = [
+  { nombre:'Zapatero Slim', categoria:'Zapatero', medidas:'120×90×14 cm', precioEfectivo:165000, activo:true },
+  { nombre:'Camabox 1 plaza', categoria:'Cama', medidas:'80/90×190 cm', precioEfectivo:354360, activo:true },
+  { nombre:'Camabox 1.5 plaza', categoria:'Cama', medidas:'100/120×190 cm', precioEfectivo:473000, activo:true },
+  { nombre:'Camabox 2 plazas 140×190', categoria:'Cama', medidas:'140×190 cm', precioEfectivo:628320, activo:true },
+  { nombre:'Camabox 2 plazas 160×190', categoria:'Cama', medidas:'160×190 cm', precioEfectivo:688470, activo:true },
+  { nombre:'Camabox Queen', categoria:'Cama', medidas:'160×200 cm', precioEfectivo:733125, activo:true },
+  { nombre:'Camabox King', categoria:'Cama', medidas:'180×200 cm', precioEfectivo:796600, activo:true },
+  { nombre:'Camabox Superking', categoria:'Cama', medidas:'200×200 cm', precioEfectivo:830000, activo:true },
+]
 
 async function getProductos() {
   try {
     const res = await fetch(SHEET_CSV, { next: { revalidate: 3600 } })
-    if (!res.ok) return []
-    const csv = await res.text()
-    return csv.split('\n').slice(1)
-      .map(row => {
-        const cols = row.split(',').map(c => c.replace(/^"|"$/g, '').trim())
-        if (!cols[0]) return null
-        return {
-          slug: slugify(cols[0]),
-          nombre: cols[0],
-          categoria: cols[2] || '',
-          medidas: cols[4] || '',
-          precioEfectivo: parseMoney(cols[7]),
-          activo: cols[14]?.toUpperCase() === 'SI',
-        }
-      })
-      .filter((p): p is NonNullable<typeof p> => p !== null && p.activo)
-  } catch {
-    return []
-  }
+    if (res.ok) {
+      const csv = await res.text()
+      const rows = csv.split('\n').slice(1)
+        .map(row => {
+          const cols = parseCSVRow(row)
+          if (!cols[0]) return null
+          return { slug: slugify(cols[0]), nombre: cols[0], categoria: cols[2]||'', medidas: cols[4]||'', precioEfectivo: parseMoney(cols[7]), activo: cols[14]?.toUpperCase() === 'SI' }
+        })
+        .filter((p): p is NonNullable<typeof p> => p !== null && p.activo)
+      if (rows.length > 0) return rows
+    }
+  } catch { /* fallback */ }
+  return FALLBACK_LISTA.map(p => ({ ...p, slug: slugify(p.nombre) }))
 }
 
 const CATEGORIA_ICON: Record<string, string> = {
