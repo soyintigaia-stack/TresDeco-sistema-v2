@@ -24,6 +24,12 @@ const FOTOS: Record<string, string[]> = {
     'https://i.imgur.com/gZEjq1l.jpeg',
     'https://i.imgur.com/IkpyhMy.jpeg',
   ],
+  'CAM-04 COMBO': [
+    'https://i.imgur.com/RxSIPIp.jpeg',
+    'https://i.imgur.com/SLF6OyW.jpeg',
+    'https://i.imgur.com/K844Fww.jpeg',
+    'https://i.imgur.com/IsS2KSI.jpeg',
+  ],
 }
 
 // ── CSV parser que respeta campos entre comillas ──────────────────────────────
