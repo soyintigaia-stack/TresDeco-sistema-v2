@@ -14,6 +14,16 @@ type Producto = {
   señaFija: number; señaPct: number
   cuotas3: number; cuotas6: number
   diasEntrega: number; activo: boolean; notas: string
+  imagenes?: string[]
+}
+
+// Fotos por código de producto (se completan con Imgur hasta tener CDN propio)
+const FOTOS: Record<string, string[]> = {
+  'ZAP-01': [
+    'https://i.imgur.com/17rKzZ3.jpeg',
+    'https://i.imgur.com/gZEjq1l.jpeg',
+    'https://i.imgur.com/IkpyhMy.jpeg',
+  ],
 }
 
 // ── CSV parser que respeta campos entre comillas ──────────────────────────────
@@ -39,7 +49,7 @@ function formatPeso(n: number) { return n > 0 ? `$${n.toLocaleString('es-AR')}` 
 
 // ── Productos hardcodeados como fallback si el Sheet no es público ────────────
 const FALLBACK: Omit<Producto,'slug'>[] = [
-  { codigo:'ZAP-01', nombre:'Zapatero Slim', categoria:'Zapatero', descripcion:'El zapatero más fino de Córdoba. Solo 14cm de profundidad, se funde con la pared y cambia completamente el ambiente de una entrada o pasillo. MDF 18mm con tirador de aluminio real. Se entrega armado.', medidas:'Alto 120cm × Ancho 90cm × Prof 14cm', colores:'Solo blanco', precioEfectivo:165000, precioLista:231000, señaFija:65000, señaPct:0, cuotas3:77000, cuotas6:38500, diasEntrega:5, activo:true, notas:'' },
+  { codigo:'ZAP-01', nombre:'Zapatero Slim', categoria:'Zapatero', descripcion:'El zapatero más fino de Córdoba. Solo 14cm de profundidad, se funde con la pared y cambia completamente el ambiente de una entrada o pasillo. MDF 18mm con tirador de aluminio real. Se entrega armado.', medidas:'Alto 120cm × Ancho 90cm × Prof 14cm', colores:'Solo blanco', precioEfectivo:165000, precioLista:231000, señaFija:65000, señaPct:0, cuotas3:77000, cuotas6:38500, diasEntrega:5, activo:true, notas:'', imagenes: FOTOS['ZAP-01'] },
   { codigo:'ZAP-02', nombre:'Zapatero Slim 2 puertas', categoria:'Zapatero', descripcion:'Versión más amplia del Zapatero Slim con 2 puertas para mayor capacidad. Mismo diseño minimalista.', medidas:'Alto 120cm × Ancho 180cm × Prof 14cm', colores:'Solo blanco', precioEfectivo:0, precioLista:0, señaFija:0, señaPct:0, cuotas3:0, cuotas6:0, diasEntrega:10, activo:false, notas:'Consultar precio' },
   { codigo:'CAM-01', nombre:'Camabox 1 plaza', categoria:'Cama', descripcion:'Cama funcional de 1 plaza con cajones integrados. MDF 18mm, diseño modular que entra por cualquier puerta. Cajones con guías telescópicas metálicas.', medidas:'80×190 cm ó 90×190 cm', colores:'Ver Carta de Colores FAPLAC', precioEfectivo:354360, precioLista:496104, señaFija:0, señaPct:60, cuotas3:165368, cuotas6:82684, diasEntrega:15, activo:true, notas:'' },
   { codigo:'CAM-02', nombre:'Camabox 1.5 plaza', categoria:'Cama', descripcion:'Cama funcional de 1 plaza y media con cajones integrados. MDF 18mm, guías telescópicas, diseño modular.', medidas:'100×190 cm ó 120×190 cm', colores:'Ver Carta de Colores FAPLAC', precioEfectivo:473000, precioLista:662200, señaFija:0, señaPct:60, cuotas3:220733, cuotas6:110367, diasEntrega:15, activo:true, notas:'' },
@@ -77,6 +87,7 @@ async function getProductos(): Promise<Producto[]> {
             diasEntrega: parseInt(c[13]) || 7,
             activo: c[14]?.toUpperCase() === 'SI',
             notas: c[15] || '',
+            imagenes: FOTOS[c[1]] ?? [],
           } as Producto
         })
         .filter((p): p is Producto => p !== null && p.activo)
@@ -116,13 +127,30 @@ export default async function ProductoPage({ params }: { params: Promise<{ slug:
 
       <main className="max-w-lg mx-auto px-4 py-8 space-y-5">
 
-        {/* Imagen */}
-        <div className="w-full aspect-[4/3] rounded-2xl bg-[#2E2E2B] flex items-center justify-center overflow-hidden">
-          <div className="text-center text-[#444]">
-            <p className="text-5xl mb-2">🛏</p>
-            <p className="text-xs">Foto próximamente</p>
+        {/* Imagen / Galería */}
+        {p.imagenes && p.imagenes.length > 0 ? (
+          <div className="space-y-2">
+            <div className="w-full aspect-[4/3] rounded-2xl overflow-hidden bg-[#2E2E2B]">
+              <img src={p.imagenes[0]} alt={p.nombre} className="w-full h-full object-cover" />
+            </div>
+            {p.imagenes.length > 1 && (
+              <div className="flex gap-2">
+                {p.imagenes.slice(1).map((img, i) => (
+                  <div key={i} className="flex-1 aspect-square rounded-xl overflow-hidden bg-[#2E2E2B]">
+                    <img src={img} alt={`${p.nombre} ${i + 2}`} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+        ) : (
+          <div className="w-full aspect-[4/3] rounded-2xl bg-[#2E2E2B] flex items-center justify-center overflow-hidden">
+            <div className="text-center text-[#444]">
+              <p className="text-5xl mb-2">🛏</p>
+              <p className="text-xs">Foto próximamente</p>
+            </div>
+          </div>
+        )}
 
         {/* Nombre */}
         <div>
