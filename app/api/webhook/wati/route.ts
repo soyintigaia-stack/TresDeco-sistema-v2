@@ -36,7 +36,7 @@ async function obtenerCatalogoSheet(): Promise<string> {
   return ''
 }
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://tresdeco-sistema-v2.vercel.app'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://tresdecoamoblamientos.com'
 
 // ─── Config del negocio ───────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `Sos Valentina, asesora de ventas de TresDeco Amoblamientos, fábrica de muebles de diseño en melamina de Córdoba, Argentina.

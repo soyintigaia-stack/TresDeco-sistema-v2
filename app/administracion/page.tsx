@@ -390,11 +390,27 @@ export default function AdminPage() {
       <div className="sticky top-0 z-40 bg-[#1A1A18]/95 backdrop-blur border-b border-[#2E2E2B]">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.push('/')} className="text-[#666660] hover:text-white transition-colors text-sm">←</button>
             <h1 style={{ fontFamily: 'var(--font-display)' }} className="text-base font-bold">
               tres<span className="text-[#C9B99A]">decó</span>
-              <span className="text-[#666660] font-normal text-xs ml-2">Administración</span>
+              <span className="text-[#666660] font-normal text-xs ml-2">Sistema</span>
             </h1>
+          </div>
+          <div className="flex items-center gap-2 ml-auto mr-2 shrink-0">
+            <a
+              href="https://tresdecoamoblamientos.com/p"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-[#C9B99A] hover:text-white transition-colors hidden sm:block"
+            >Ver catálogo →</a>
+            <button
+              onClick={async () => {
+                const { createClient } = await import('@supabase/supabase-js')
+                const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+                await sb.auth.signOut()
+                window.location.href = '/login'
+              }}
+              className="text-xs text-[#666660] hover:text-red-400 transition-colors"
+            >Salir</button>
           </div>
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             <Tab id="resumen"   label="Resumen" />
