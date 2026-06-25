@@ -149,37 +149,39 @@ export default async function ProductoPage({ params }: { params: Promise<{ slug:
         <span className="text-[#555] text-xs ml-auto hidden sm:block">{HORARIO}</span>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-8 space-y-5">
+      <main className="max-w-5xl mx-auto px-4 py-8">
+        <div className="md:flex md:gap-10 md:items-start space-y-5 md:space-y-0">
 
-        {/* Imagen / Galería */}
-        {p.imagenes && p.imagenes.length > 0 ? (
-          <div className="space-y-2">
-            <div className="w-full aspect-[4/3] rounded-2xl overflow-hidden bg-[#2E2E2B]">
-              <img src={p.imagenes[0]} alt={p.nombre} className="w-full h-full object-cover" />
-            </div>
-            {p.imagenes.length > 1 && (
-              <div className="flex gap-2">
-                {p.imagenes.slice(1).map((img, i) => (
-                  <div key={i} className="flex-1 aspect-square rounded-xl overflow-hidden bg-[#2E2E2B]">
-                    <img src={img} alt={`${p.nombre} ${i + 2}`} className="w-full h-full object-cover" />
+          {/* Columna izquierda: Imagen / Galería */}
+          <div className="md:w-1/2 md:sticky md:top-6 space-y-2 shrink-0">
+            {p.imagenes && p.imagenes.length > 0 ? (
+              <>
+                <div className="w-full aspect-[3/4] md:aspect-[4/5] rounded-2xl overflow-hidden bg-[#2E2E2B]">
+                  <img src={p.imagenes[0]} alt={p.nombre} className="w-full h-full object-cover object-top" />
+                </div>
+                {p.imagenes.length > 1 && (
+                  <div className="flex gap-2">
+                    {p.imagenes.slice(1).map((img, i) => (
+                      <div key={i} className="flex-1 aspect-square rounded-xl overflow-hidden bg-[#2E2E2B]">
+                        <img src={img} alt={`${p.nombre} ${i + 2}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+                <p className="text-[#555] text-xs text-center">Foto referencial · fabricamos en todas las medidas disponibles</p>
+              </>
+            ) : (
+              <div className="w-full aspect-[4/3] rounded-2xl bg-[#2E2E2B] flex items-center justify-center">
+                <div className="text-center text-[#444]">
+                  <p className="text-5xl mb-2">🛏</p>
+                  <p className="text-xs">Foto próximamente</p>
+                </div>
               </div>
             )}
           </div>
-        ) : (
-          <div className="w-full aspect-[4/3] rounded-2xl bg-[#2E2E2B] flex items-center justify-center overflow-hidden">
-            <div className="text-center text-[#444]">
-              <p className="text-5xl mb-2">🛏</p>
-              <p className="text-xs">Foto próximamente</p>
-            </div>
-          </div>
-        )}
 
-        {/* Nota foto referencial */}
-        {p.imagenes && p.imagenes.length > 0 && (
-          <p className="text-[#555] text-xs text-center -mt-1">Foto referencial · fabricamos en todas las medidas disponibles</p>
-        )}
+          {/* Columna derecha: Datos */}
+          <div className="md:w-1/2 space-y-5">
 
         {/* Nombre */}
         <div>
@@ -276,6 +278,9 @@ export default async function ProductoPage({ params }: { params: Promise<{ slug:
           <p>TresDeco Amoblamientos · Villa Cabrera, Córdoba</p>
           <p>Fábrica propia · +50 reseñas 5 ⭐ en Google</p>
         </div>
+
+          </div>{/* fin columna derecha */}
+        </div>{/* fin flex */}
       </main>
     </div>
   )
