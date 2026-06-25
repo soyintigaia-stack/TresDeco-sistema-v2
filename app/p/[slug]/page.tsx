@@ -24,7 +24,7 @@ const FOTOS_ZAP = [
   'https://i.imgur.com/IkpyhMy.jpeg',
 ]
 const FOTOS_CAM_CHICA = [
-  'https://i.imgur.com/TNTyuBV.jpeg',
+  'https://i.imgur.com/dMYyFcf.jpeg',
 ]
 const FOTOS_CAM_GRANDE = [
   'https://i.imgur.com/oOs57GS.jpeg',
