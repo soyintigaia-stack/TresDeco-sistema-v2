@@ -68,29 +68,35 @@ Luego respondé directamente su consulta sin más rodeos.
 CATÁLOGO Y PRECIOS (fallback — el catálogo actualizado viene más abajo si está disponible)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-ZAPATERO SLIM — producto estrella
+ZAPATERO SLIM (ZAP-01) — producto estrella
 - SOLO en blanco con tirador de aluminio (diseño exclusivo, se funde con la pared)
 - Medidas: 120cm alto × 90cm ancho × 14cm prof (el más fino de Córdoba)
 - Capacidad: 12 pares de uso diario. No apto tacos altos.
-- Efectivo: $165.000 — seña $65.000, resto al entregar
-- 3 cuotas s/int: $55.000 c/u · 6 cuotas: $35.000 c/u
+- Efectivo: $165.000 — seña fija $65.000, resto al entregar
+- 3 cuotas s/int: $77.000 c/u · 6 cuotas: $38.500 c/u
 - Entrega: 5 días hábiles
-- Link del producto: ${APP_URL}/p/zapatero-slim
+- Link: ${APP_URL}/p/zapatero-slim
 
 CAMABOX — camas funcionales con cajones
-MDF 18mm, diseño modular, cajones con guías telescópicas metálicas. Amplia carta de colores FAPLAC.
-- 1 plaza (80/90×190): $354.360 ef — seña 60% — 15 días
-- 1.5 plaza (100/120×190): $473.000 ef — seña 60% — 15 días
-- 2 plazas (140×190): $628.320 ef — seña 60% — 15 días
-- 2 plazas (160×190): $688.470 ef — seña 60% — 15 días
-- Queen (160×200): $733.125 ef — seña 60% — 15 días
-- King (180×200): $796.600 ef — seña 60% — 15 días
-- Superking (200×200): $830.000 ef — seña 60% — 15 días
-- Combo 140×190 + respaldo + mesas: $978.800 ef — 15 días
-- Combo 160×190/200 + respaldo + mesas: $978.800 ef — 15 días
-Links: ${APP_URL}/p/camabox-king · ${APP_URL}/p/camabox-queen · ${APP_URL}/p/camabox-2-plazas-140-190
+MDF 18mm, diseño modular, cajones con guías telescópicas metálicas.
+Colores disponibles: Blanco · Camellia · Scotch · Gris caliza (otros colores FAPLAC con 10% recargo)
+Seña = 60% del precio efectivo en todos los modelos. Saldo al retirar. Entrega: 15 días hábiles.
 
-OTROS (precio a confirmar con el equipo):
+TABLA DE MEDIDAS — MUY IMPORTANTE, no confundir:
+- 1 plaza = 80×190 ó 90×190 → $354.360 ef — 3c: $165.368 — 6c: $82.684 — Link: ${APP_URL}/p/camabox-1-plaza
+- 1 y media plaza = 100×190 ó 120×190 → $473.000 ef — 3c: $220.733 — 6c: $110.367 — Link: ${APP_URL}/p/camabox-1-5-plaza
+- 2 plazas = 140×190 → $628.320 ef — 3c: $293.216 — 6c: $146.608 — Link: ${APP_URL}/p/camabox-2-plazas-140-190
+- 2 plazas = 160×190 → $688.470 ef — 3c: $321.286 — 6c: $160.643 — Link: ${APP_URL}/p/camabox-2-plazas-160-190
+- King = 180×200 → $733.215 ef — 3c: $342.167 — 6c: $171.084 — Link: ${APP_URL}/p/camabox-king
+- Superking = 200×200 → $796.600 ef — 3c: $371.747 — 6c: $185.873 — Link: ${APP_URL}/p/camabox-superking
+
+COMBOS (base + respaldo + 2 mesas de luz, mismo color):
+- Combo 140×190: $978.800 ef — 3c: $456.773 — 6c: $228.387
+- Combo 160×190/200: $978.800 ef — 3c: $456.773 — 6c: $228.387
+- Combo King 180×200: $998.690 ef — 3c: $466.055 — 6c: $233.028
+- Combo Superking 200×200: $1.021.400 ef — 3c: $476.653 — 6c: $238.327
+
+OTROS (precio a confirmar con el equipo antes de cotizar):
 - Zapatero Slim 2 puertas — ${APP_URL}/p/zapatero-slim-2-puertas
 - Rack TV con patas de caño — ${APP_URL}/p/rack-tv-con-patas-de-cano
 - Panel TV flotante — ${APP_URL}/p/panel-tv-flotante
