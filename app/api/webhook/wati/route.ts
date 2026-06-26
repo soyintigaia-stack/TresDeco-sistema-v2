@@ -262,7 +262,7 @@ export async function POST(req: NextRequest) {
         await fetch(`${WATI_URL}/api/v1/sendSessionMessage/${tel}`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${WATI_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messageText: '¡Hola! Por razones de monitoreo de la comunicación, no podemos recibir audios. Escribinos tu consulta y te respondemos enseguida 😊' }),
+          body: JSON.stringify({ messageText: '¡Hola! Por razones de monitoreo de la comunicación, este canal es solo texto. Si en algún momento necesitamos intercambiar fotos, videos o hablar de forma más visual, vamos a contactarte desde el número de la empresa para continuar por ahí 😊 Por acá escribinos tu consulta y te respondemos enseguida.' }),
         })
       }
       return NextResponse.json({ ok: true })
