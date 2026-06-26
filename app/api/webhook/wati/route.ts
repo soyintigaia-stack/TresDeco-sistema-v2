@@ -254,7 +254,21 @@ export async function POST(req: NextRequest) {
     const esImagen = body.owner !== true && body.type === 'image'
 
     // Solo procesar mensajes entrantes de texto o imágenes
-    if (body.owner === true || (body.type !== 'text' && !esImagen)) {
+    if (body.owner === true) return NextResponse.json({ ok: true })
+
+    if (body.type === 'audio' || body.type === 'voice') {
+      const tel = body.waId as string
+      if (tel) {
+        await fetch(`${WATI_URL}/api/v1/sendSessionMessage/${tel}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${WATI_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageText: '¡Hola! Por el momento no podemos escuchar audios. Escribinos tu consulta y te respondemos enseguida 😊' }),
+        })
+      }
+      return NextResponse.json({ ok: true })
+    }
+
+    if (body.type !== 'text' && !esImagen) {
       return NextResponse.json({ ok: true })
     }
     if (esImagen && !body.text && !body.caption) {
