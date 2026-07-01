@@ -70,20 +70,20 @@ CATÁLOGO Y PRECIOS (fallback — el catálogo actualizado viene más abajo si e
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FORMAS DE PAGO
+FORMAS DE PAGO Y ESTRUCTURA DE PRECIOS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Hay dos precios distintos según cómo paga:
+Hay dos precios para cada producto:
 
-*Precio de contado* (efectivo o transferencia): precio con descuento. Se usa cuando el cliente paga en persona en el taller o transfiere.
-*Precio de lista*: se usa para pagos con tarjeta. Es el precio base para calcular cuotas.
+*Precio efectivo* (efectivo o transferencia bancaria): precio con descuento significativo. Es el precio real de contado.
+*Precio de lista*: precio sin descuento, base para pagos con tarjeta y cálculo de cuotas.
 
-Formas de pago aceptadas:
-- Efectivo o transferencia bancaria (alias tresdeco.nx.ars, titular Flavia Vitali) → precio de contado
-- Tarjeta de débito o crédito Visa y Mastercard bancarizadas → precio de lista, en cuotas (próximamente links directos de pago)
+Formas de pago:
+- Efectivo o transferencia al alias *tresdeco.nx.ars* (titular Flavia Vitali) → se cobra el precio efectivo
+- Tarjeta débito o crédito Visa/Mastercard bancarizadas → se cobra el precio de lista (en cuotas, próximamente con links de pago)
 
-Estructura de seña (TODOS los productos):
-- Seña: 60% del precio de contado
-- Saldo: 40% restante contra entrega
+Seña y saldo (TODOS los productos):
+- Seña = 60% del precio efectivo
+- Saldo = 40% restante, se abona al retirar el mueble
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CATÁLOGO ACTIVO
@@ -93,35 +93,35 @@ ZAPATERO SLIM (ZAP-01) — producto estrella
 - SOLO en blanco con tirador de aluminio (diseño exclusivo, se funde con la pared)
 - Medidas: 120cm alto × 90cm ancho × 14cm prof (el más fino de Córdoba)
 - Capacidad: 12 pares de uso diario. No apto tacos altos.
-- Contado: $165.000 — seña $65.000 — saldo $100.000 al entregar
-- Tarjeta (precio lista $231.000): 3 cuotas s/int $77.000 c/u · 6 cuotas $38.500 c/u
+- Efectivo: $165.000 — seña fija $65.000 — saldo $100.000 al entregar
+- Lista/tarjeta ($231.000): 3 cuotas s/int $77.000 c/u · 6 cuotas $38.500 c/u
 - Entrega: 5 días hábiles
 - Link: ${APP_URL}/p/zapatero-slim
 
 CAMABOX — camas funcionales con cajones
 MDF 18mm, diseño modular, cajones con guías telescópicas metálicas.
 Colores: Blanco · Camellia · Scotch · Gris caliza (otros colores FAPLAC con 10% recargo)
-Entrega: 15 días hábiles en todos los modelos.
+Seña = 60% del precio efectivo. Saldo al retirar. Entrega: 15 días hábiles.
 
 TABLA DE MEDIDAS — MUY IMPORTANTE, no confundir nombres con medidas:
-- 1 plaza      = 80×190 ó 90×190   → contado $354.360 · seña $212.616 · lista $496.104 · 3c $165.368 · 6c $82.684
+- 1 plaza      = 80×190 ó 90×190   → efectivo $354.360 · seña $212.616 · lista $496.104 · 3c $165.368 · 6c $82.684
   Link: ${APP_URL}/p/camabox-1-plaza
-- 1½ plaza     = 100×190 ó 120×190 → contado $473.000 · seña $283.800 · lista $662.200 · 3c $220.733 · 6c $110.367
+- 1½ plaza     = 100×190 ó 120×190 → efectivo $473.000 · seña $283.800 · lista $662.200 · 3c $220.733 · 6c $110.367
   Link: ${APP_URL}/p/camabox-1-5-plaza
-- 2 plazas     = 140×190           → contado $628.320 · seña $376.992 · lista $879.648 · 3c $293.216 · 6c $146.608
+- 2 plazas     = 140×190           → efectivo $596.400 · seña $357.840 · lista $834.960 · 3c $278.320 · 6c $139.160
   Link: ${APP_URL}/p/camabox-2-plazas-140-190
-- 2 plazas     = 160×190 ó 160×200 → contado $688.470 · seña $413.082 · lista $963.858 · 3c $321.286 · 6c $160.643
+- 2 plazas     = 160×190 ó 160×200 → efectivo $688.470 · seña $413.082 · lista $963.858 · 3c $321.286 · 6c $160.643
   Link: ${APP_URL}/p/camabox-2-plazas-160-190
-- King         = 180×200           → contado $733.215 · seña $439.929 · lista $1.026.501 · 3c $342.167 · 6c $171.084
+- King         = 180×200           → efectivo $713.400 · seña $428.040 · lista $998.760 · 3c $332.920 · 6c $166.460
   Link: ${APP_URL}/p/camabox-king
-- Superking    = 200×200           → contado $796.600 · seña $477.960 · lista $1.115.240 · 3c $371.747 · 6c $185.873
+- Superking    = 200×200           → efectivo $796.600 · seña $477.960 · lista $1.115.240 · 3c $371.747 · 6c $185.873
   Link: ${APP_URL}/p/camabox-superking
 
 COMBOS (base + respaldo + 2 mesas de luz, mismo color — mencionarlos para 140×190 o mayor):
-- Combo 140×190: contado $978.800 · seña $587.280 · lista $1.370.320 · 3c $456.773 · 6c $228.387
-- Combo 160×190/200: contado $978.800 · seña $587.280 · lista $1.370.320 · 3c $456.773 · 6c $228.387
-- Combo King 180×200: contado $998.690 · seña $599.214 · lista $1.398.166 · 3c $466.055 · 6c $233.028
-- Combo Superking 200×200: contado $1.021.400 · seña $612.840 · lista $1.429.960 · 3c $476.653 · 6c $238.327
+- Combo 140×190:      efectivo $908.760 · seña $545.256 · lista $1.272.264 · 3c $424.088 · 6c $212.044
+- Combo 160×190/200:  efectivo $978.800 · seña $587.280 · lista $1.370.320 · 3c $456.773 · 6c $228.387
+- Combo King 180×200: efectivo $998.690 · seña $599.214 · lista $1.398.166 · 3c $466.055 · 6c $233.028
+- Combo Superking:    efectivo $1.021.400 · seña $612.840 · lista $1.429.960 · 3c $476.653 · 6c $238.327
 
 REPISAS FLOTANTES
 - 60×20 cm y 80×20 cm disponibles. Entrega: 2 días hábiles.
