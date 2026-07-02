@@ -12,7 +12,7 @@ import {
   COLORES_DISPONIBLES,
 } from '@/lib/supabase'
 
-type Vista = 'resumen' | 'standard' | 'medida' | 'cotizador' | 'catalogo' | 'crm' | 'remarketing' | 'operarios' | 'alertas'
+type Vista = 'resumen' | 'standard' | 'medida' | 'cotizador' | 'catalogo' | 'crm' | 'remarketing' | 'contenido' | 'ads' | 'operarios' | 'alertas'
 
 const BADGE_ALERTA: Record<string, { dot: string; card: string; text: string }> = {
   danger:  { dot: 'bg-red-400',   card: 'border-red-900 bg-red-950/20',    text: 'text-red-200'   },
@@ -58,6 +58,12 @@ export default function AdminPage() {
   const [convs, setConvs] = useState<any[]>([])
   const [enviandoRemark, setEnviandoRemark] = useState<string | null>(null)
   const [remarkMsg, setRemarkMsg] = useState<Record<string, string>>({})
+
+  // Contenido IA
+  const [contForm, setContForm] = useState({ producto: '', tipo: 'post', red: 'Instagram', info_extra: '' })
+  const [contTexto, setContTexto] = useState('')
+  const [contGenerando, setContGenerando] = useState(false)
+  const [contCopiado, setContCopiado] = useState(false)
 
   // Catálogo / Despieces
   const [catalogo, setCatalogo] = useState<ProductoCatalogo[]>([])
@@ -419,6 +425,8 @@ export default function AdminPage() {
             <Tab id="cotizador" label="Cotizador" badge={presupuestosPendientes.length} />
             <Tab id="crm"          label="CRM" badge={leads.filter(l => l.estado === 'nuevo').length} />
             <Tab id="remarketing"  label="Remarketing" badge={leads.filter(l => ['nuevo','contactado','interesado'].includes(l.estado) && convs.find(c => c.telefono === l.telefono && new Date(c.updated_at) < new Date(Date.now() - 24*60*60*1000))).length || undefined} />
+            <Tab id="contenido"    label="Contenido IA" />
+            <Tab id="ads"          label="Meta Ads" />
             <Tab id="catalogo"     label="Catálogo" />
             <Tab id="operarios"    label="Operarios" />
             <Tab id="alertas"   label="Alertas" badge={alertas.length} />
@@ -1151,6 +1159,195 @@ export default function AdminPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── CONTENIDO IA ─── */}
+        {vista === 'contenido' && (
+          <div className="space-y-6 max-w-2xl">
+            <div>
+              <h2 style={{ fontFamily: 'var(--font-display)' }} className="text-lg font-bold mb-1">Generador de contenido</h2>
+              <p className="text-[#666660] text-xs">Generá copy para Instagram, Facebook o WhatsApp con IA. Revisalo y ajustalo antes de publicar.</p>
+            </div>
+
+            <div className="space-y-4 bg-[#242421] border border-[#2E2E2B] rounded-xl p-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[#666660] text-xs mb-1.5 block">Producto</label>
+                  <select
+                    value={contForm.producto}
+                    onChange={e => setContForm(p => ({ ...p, producto: e.target.value }))}
+                    className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50"
+                  >
+                    <option value="">— elegí un producto —</option>
+                    {catalogo.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+                    <option value="Camabox en general">Camabox (en general)</option>
+                    <option value="Zapatero Slim">Zapatero Slim</option>
+                    <option value="Muebles a medida">Muebles a medida</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[#666660] text-xs mb-1.5 block">Tipo de contenido</label>
+                  <select
+                    value={contForm.tipo}
+                    onChange={e => setContForm(p => ({ ...p, tipo: e.target.value }))}
+                    className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50"
+                  >
+                    <option value="post">Post de feed</option>
+                    <option value="historia">Historia</option>
+                    <option value="oferta">Oferta especial</option>
+                    <option value="tip">Tip de decoración</option>
+                    <option value="whatsapp">Mensaje WhatsApp</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[#666660] text-xs mb-1.5 block">Red social</label>
+                <div className="flex gap-2">
+                  {['Instagram', 'Facebook', 'WhatsApp'].map(r => (
+                    <button
+                      key={r}
+                      onClick={() => setContForm(p => ({ ...p, red: r }))}
+                      className={`px-4 py-1.5 rounded-lg text-xs transition-colors border ${contForm.red === r ? 'bg-[#C9B99A] text-[#1A1A18] border-[#C9B99A] font-medium' : 'border-[#3a3a37] text-[#666660] hover:text-white'}`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[#666660] text-xs mb-1.5 block">Info adicional <span className="text-[#444441]">(opcional)</span></label>
+                <input
+                  value={contForm.info_extra}
+                  onChange={e => setContForm(p => ({ ...p, info_extra: e.target.value }))}
+                  placeholder="Ej: hay descuento esta semana, el color disponible es Blanco Tundra..."
+                  className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50"
+                />
+              </div>
+
+              <button
+                disabled={!contForm.producto || contGenerando}
+                onClick={async () => {
+                  setContGenerando(true)
+                  setContTexto('')
+                  setContCopiado(false)
+                  try {
+                    const res = await fetch('/api/contenido/generar', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(contForm),
+                    })
+                    const data = await res.json()
+                    setContTexto(data.texto ?? 'Error generando contenido')
+                  } catch { setContTexto('Error al conectar') }
+                  setContGenerando(false)
+                }}
+                className="w-full py-2.5 rounded-xl bg-[#C9B99A] text-[#1A1A18] font-medium text-sm disabled:opacity-40 hover:bg-[#b5a688] transition-colors"
+              >
+                {contGenerando ? 'Generando con IA…' : 'Generar contenido'}
+              </button>
+            </div>
+
+            {contTexto && (
+              <div className="bg-[#242421] border border-[#2E2E2B] rounded-xl p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[#666660] text-xs uppercase tracking-wider">Resultado</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        setContGenerando(true)
+                        setContCopiado(false)
+                        try {
+                          const res = await fetch('/api/contenido/generar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(contForm),
+                          })
+                          const data = await res.json()
+                          setContTexto(data.texto ?? '')
+                        } catch { /* */ }
+                        setContGenerando(false)
+                      }}
+                      disabled={contGenerando}
+                      className="text-xs text-[#666660] border border-[#3a3a37] px-3 py-1 rounded-lg hover:text-white disabled:opacity-40"
+                    >
+                      Regenerar
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(contTexto)
+                        setContCopiado(true)
+                        setTimeout(() => setContCopiado(false), 2000)
+                      }}
+                      className={`text-xs px-3 py-1 rounded-lg border transition-colors ${contCopiado ? 'bg-emerald-950 text-emerald-300 border-emerald-800' : 'border-[#3a3a37] text-[#C9B99A] hover:bg-[#3a3a37]'}`}
+                    >
+                      {contCopiado ? '¡Copiado!' : 'Copiar'}
+                    </button>
+                  </div>
+                </div>
+                <textarea
+                  value={contTexto}
+                  onChange={e => setContTexto(e.target.value)}
+                  rows={10}
+                  className="w-full bg-[#1A1A18] border border-[#3a3a37] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#C9B99A]/50 resize-none leading-relaxed"
+                />
+                <p className="text-[#444441] text-xs">Podés editar el texto antes de copiarlo. Siempre revisarlo antes de publicar.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── META ADS ─── */}
+        {vista === 'ads' && (
+          <div className="space-y-6 max-w-2xl">
+            <div>
+              <h2 style={{ fontFamily: 'var(--font-display)' }} className="text-lg font-bold mb-1">Dashboard Meta Ads</h2>
+              <p className="text-[#666660] text-xs">Métricas automáticas de tus campañas de Facebook e Instagram.</p>
+            </div>
+
+            <div className="bg-amber-950/20 border border-amber-900/40 rounded-xl p-5 space-y-3">
+              <p className="text-amber-300 text-sm font-medium">Conexión pendiente</p>
+              <p className="text-[#888880] text-sm">Para activar el dashboard necesitamos acceso de lectura a tu Meta Business Manager. Esto permite ver CPL, ROAS y volumen de leads por campaña de forma automática.</p>
+              <div className="space-y-2 pt-1">
+                <p className="text-[#666660] text-xs font-medium uppercase tracking-wider">Pasos para conectar:</p>
+                <ol className="space-y-1.5 text-sm text-[#888880]">
+                  <li className="flex gap-2"><span className="text-amber-400 font-medium flex-shrink-0">1.</span> Dante entra a Meta Business Manager → Configuración → Usuarios</li>
+                  <li className="flex gap-2"><span className="text-amber-400 font-medium flex-shrink-0">2.</span> Agrega al estratega con acceso de Analista (solo lectura)</li>
+                  <li className="flex gap-2"><span className="text-amber-400 font-medium flex-shrink-0">3.</span> El estratega genera un token de acceso y lo carga en Vercel</li>
+                  <li className="flex gap-2"><span className="text-amber-400 font-medium flex-shrink-0">4.</span> El dashboard se activa automáticamente</li>
+                </ol>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'CPL promedio', value: '—', sub: 'Costo por lead' },
+                { label: 'Leads esta semana', value: '—', sub: 'Desde campañas activas' },
+                { label: 'Invertido este mes', value: '—', sub: 'Presupuesto ejecutado' },
+                { label: 'ROAS estimado', value: '—', sub: 'Retorno sobre inversión' },
+              ].map(m => (
+                <div key={m.label} className="bg-[#2E2E2B] rounded-xl p-4 border border-[#3a3a37] opacity-50">
+                  <p className="text-[#666660] text-xs uppercase tracking-wider mb-1">{m.label}</p>
+                  <p style={{ fontFamily: 'var(--font-display)' }} className="text-2xl font-bold text-white">{m.value}</p>
+                  <p className="text-[#666660] text-xs mt-1">{m.sub}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-[#242421] border border-[#2E2E2B] rounded-xl p-4">
+              <p className="text-[#666660] text-xs uppercase tracking-wider mb-2">Mientras tanto</p>
+              <p className="text-sm text-[#888880]">Podés revisar tus métricas manualmente en el panel de Meta Ads. Una vez conectado, este dashboard las mostrará acá de forma automática cada semana.</p>
+              <a
+                href="https://adsmanager.facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-3 text-xs text-[#C9B99A] border border-[#C9B99A]/30 px-4 py-2 rounded-lg hover:bg-[#C9B99A]/10 transition-colors"
+              >
+                Ir al Ads Manager →
+              </a>
             </div>
           </div>
         )}
