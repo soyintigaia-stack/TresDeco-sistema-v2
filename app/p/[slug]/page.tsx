@@ -3,6 +3,13 @@ import type { Metadata } from 'next'
 
 const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/1TaaG04ZHAKara64_1XmyIM8NABWX78uZvgkp7phQntE/export?format=csv&gid=0'
 const ALIAS_CBU = 'tresdeco.nx.ars'
+
+const COLORES_CAMA = [
+  { nombre: 'Blanco Tundra', img: 'https://i.imgur.com/4cJ7OX7.png' },
+  { nombre: 'Camellia',      img: 'https://i.imgur.com/zGiIz1N.png' },
+  { nombre: 'Scotch',        img: 'https://i.imgur.com/1Zn3AnB.png' },
+  { nombre: 'Gris Caliza',   img: 'https://i.imgur.com/GAFSgLb.png' },
+]
 const TITULAR    = 'Flavia Vitali'
 const WAPP_NUM   = '5493513579013'
 const HORARIO    = 'Lunes a viernes 9 a 18hs · Sábados 9 a 13hs'
@@ -204,6 +211,24 @@ export default async function ProductoPage({ params }: { params: Promise<{ slug:
             </div>
           ))}
         </div>
+
+        {/* Colores disponibles (solo camabox) */}
+        {p.categoria === 'Cama' && (
+          <div className="space-y-3">
+            <p className="text-xs text-[#C9B99A] uppercase tracking-wider font-semibold">Colores disponibles</p>
+            <div className="grid grid-cols-4 gap-2">
+              {COLORES_CAMA.map(c => (
+                <div key={c.nombre} className="text-center">
+                  <div className="rounded-xl overflow-hidden aspect-square border border-[#3a3a37]">
+                    <img src={c.img} alt={c.nombre} className="w-full h-full object-cover" />
+                  </div>
+                  <p className="text-[#aaa] text-xs mt-1.5 leading-tight">{c.nombre}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-[#555] text-xs">¿Querés otro color? Lo personalizamos con un pequeño recargo — consultanos.</p>
+          </div>
+        )}
 
         {/* Precios */}
         {p.precioEfectivo > 0 && (
