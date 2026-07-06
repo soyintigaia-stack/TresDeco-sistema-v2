@@ -17,22 +17,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/administracion', req.url))
   }
 
-  // ── Proteger /administracion ─────────────────────────────────────────────
-  if (pathname.startsWith('/administracion')) {
-    // Buscar cookie de sesión de Supabase (el nombre varía según la versión)
-    const cookies = req.cookies.getAll()
-    const authCookie = cookies.find(c =>
-      c.name.includes('auth-token') ||
-      c.name.includes('sb-') && c.name.includes('-auth-token')
-    )
-
-    if (!authCookie) {
-      const loginUrl = new URL('/login', req.url)
-      loginUrl.searchParams.set('next', pathname)
-      return NextResponse.redirect(loginUrl)
-    }
-  }
-
+  // Auth se maneja en el cliente — la página /administracion verifica la sesión
   return NextResponse.next()
 }
 
