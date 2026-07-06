@@ -24,13 +24,7 @@ function formatPeso(n: number) { return n > 0 ? `$${n.toLocaleString('es-AR')}` 
 
 const FALLBACK_LISTA = [
   { nombre:'Zapatero Slim', categoria:'Zapatero', medidas:'120×90×14 cm', precioEfectivo:165000, activo:true },
-  { nombre:'Camabox 1 plaza', categoria:'Cama', medidas:'80/90×190 cm', precioEfectivo:354360, activo:true },
-  { nombre:'Camabox 1.5 plaza', categoria:'Cama', medidas:'100/120×190 cm', precioEfectivo:473000, activo:true },
-  { nombre:'Camabox 2 plazas 140×190', categoria:'Cama', medidas:'140×190 cm', precioEfectivo:628320, activo:true },
-  { nombre:'Camabox 2 plazas 160×190', categoria:'Cama', medidas:'160×190 cm', precioEfectivo:688470, activo:true },
-  { nombre:'Camabox Queen', categoria:'Cama', medidas:'160×200 cm', precioEfectivo:733125, activo:true },
-  { nombre:'Camabox King', categoria:'Cama', medidas:'180×200 cm', precioEfectivo:796600, activo:true },
-  { nombre:'Camabox Superking', categoria:'Cama', medidas:'200×200 cm', precioEfectivo:830000, activo:true },
+  { nombre:'Camabox', categoria:'Cama', medidas:'1 plaza · 1½ · 2 plazas · Queen · King', precioEfectivo:354360, activo:true },
 ]
 
 async function getProductos() {
@@ -38,13 +32,20 @@ async function getProductos() {
     const res = await fetch(SHEET_CSV, { next: { revalidate: 3600 } })
     if (res.ok) {
       const csv = await res.text()
-      const rows = csv.split('\n').slice(1)
+      let rows = csv.split('\n').slice(1)
         .map(row => {
           const cols = parseCSVRow(row)
           if (!cols[0]) return null
           return { slug: slugify(cols[0]), nombre: cols[0], categoria: cols[2]||'', medidas: cols[4]||'', precioEfectivo: parseMoney(cols[7]), activo: cols[14]?.toUpperCase() === 'SI' }
         })
         .filter((p): p is NonNullable<typeof p> => p !== null && p.activo)
+      // Colapsar todos los Camabox en una sola entrada
+      const hasCamabox = rows.some(p => p.nombre.toLowerCase().startsWith('camabox'))
+      if (hasCamabox) {
+        const camMin = rows.filter(p => p.nombre.toLowerCase().startsWith('camabox')).reduce((min, p) => p.precioEfectivo < min ? p.precioEfectivo : min, Infinity)
+        rows = rows.filter(p => !p.nombre.toLowerCase().startsWith('camabox'))
+        rows.push({ slug: 'camabox', nombre: 'Camabox', categoria: 'Cama', medidas: '1 plaza · 1½ · 2 plazas · Queen · King', precioEfectivo: camMin, activo: true })
+      }
       if (rows.length > 0) return rows
     }
   } catch { /* fallback */ }
@@ -95,7 +96,9 @@ export default async function CatalogoPage() {
                       {p.medidas && <p className="text-[#888] text-xs mt-0.5">{p.medidas}</p>}
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-sm">{formatPeso(p.precioEfectivo)}</p>
+                      <p className="font-semibold text-sm">
+                        {p.slug === 'camabox' ? 'desde ' : ''}{formatPeso(p.precioEfectivo)}
+                      </p>
                       <p className="text-[#888] text-xs">efectivo</p>
                     </div>
                   </Link>
