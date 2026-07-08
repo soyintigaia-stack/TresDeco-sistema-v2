@@ -52,7 +52,7 @@ export default function AdminPage() {
     nombre: '', telefono: '', barrio: '', producto: 'Zapatero Slim',
     color: '', cantidad: '1', metodo_pago: '', fuente: 'manual' as FuenteLead, notas: '',
   })
-  const [leadEstadoEdit, setLeadEstadoEdit] = useState<EstadoLead>('nuevo')
+  const [leadEstadoEdit, setLeadEstadoEdit] = useState<EstadoLead>('en_gestion')
 
   // Remarketing
   const [convs, setConvs] = useState<any[]>([])
@@ -423,7 +423,7 @@ export default function AdminPage() {
             <Tab id="standard"  label="Standard" />
             <Tab id="medida"    label="A Medida" />
             <Tab id="cotizador" label="Cotizador" badge={presupuestosPendientes.length} />
-            <Tab id="crm"          label="CRM" badge={leads.filter(l => l.estado === 'caliente' || l.estado === 'consulta_pendiente').length || leads.filter(l => l.estado === 'nuevo').length} />
+            <Tab id="crm"          label="CRM" badge={leads.filter(l => l.estado === 'caliente' || l.estado === 'consulta_pendiente').length || undefined} />
             <Tab id="remarketing"  label="Remarketing" badge={leads.filter(l => ['nuevo','contactado','interesado'].includes(l.estado) && convs.find(c => c.telefono === l.telefono && new Date(c.updated_at) < new Date(Date.now() - 24*60*60*1000))).length || undefined} />
             <Tab id="contenido"    label="Contenido IA" />
             <Tab id="ads"          label="Meta Ads" />
@@ -479,13 +479,13 @@ export default function AdminPage() {
               <div>
                 <p className="text-[#666660] text-xs uppercase tracking-wider mb-3">CRM — Leads</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <KPI label="Nuevos" value={leads.filter(l => l.estado === 'nuevo').length}
-                    onClick={() => { setVista('crm'); setFiltroLead('nuevo') }} />
-                  <KPI label="En seguimiento" value={leads.filter(l => ['contactado','interesado','presupuestado'].includes(l.estado)).length}
+                  <KPI label="🔥 Listos para comprar" value={leads.filter(l => l.estado === 'caliente').length}
                     onClick={() => { setVista('crm'); setFiltroLead(null) }} />
-                  <KPI label="Cerrados" value={leads.filter(l => l.estado === 'cerrado').length} sub="convertidos en OT"
-                    onClick={() => { setVista('crm'); setFiltroLead('cerrado') }} />
-                  <KPI label="Perdidos" value={leads.filter(l => l.estado === 'perdido').length}
+                  <KPI label="📞 En gestión" value={leads.filter(l => ['en_gestion','seguimiento_futuro'].includes(l.estado)).length}
+                    onClick={() => { setVista('crm'); setFiltroLead(null) }} />
+                  <KPI label="✅ Abonados" value={leads.filter(l => ['senado','abonado_completo'].includes(l.estado)).length} sub="señados + completos"
+                    onClick={() => { setVista('crm'); setFiltroLead(null) }} />
+                  <KPI label="❌ Perdidos" value={leads.filter(l => l.estado === 'perdido').length}
                     onClick={() => { setVista('crm'); setFiltroLead('perdido') }} />
                 </div>
               </div>
@@ -720,13 +720,13 @@ export default function AdminPage() {
 
         {/* ─── CRM ─── */}
         {vista === 'crm' && (() => {
-          const columnas: { estado: EstadoLead; titulo: string; highlight?: string }[] = [
-            { estado: 'caliente',          titulo: '🔥 Listos para comprar', highlight: 'border-orange-800 bg-orange-950/10' },
-            { estado: 'consulta_pendiente',titulo: '❓ Consultas pendientes', highlight: 'border-purple-800 bg-purple-950/10' },
-            { estado: 'nuevo',             titulo: 'Nuevos'        },
-            { estado: 'contactado',        titulo: 'Contactados'   },
-            { estado: 'interesado',        titulo: 'Interesados'   },
-            { estado: 'presupuestado',     titulo: 'Presupuestados'},
+          const columnas: { estado: EstadoLead; titulo: string; highlight?: string; urgente?: boolean }[] = [
+            { estado: 'caliente',          titulo: '🔥 Listos para comprar',  highlight: 'border-orange-800 bg-orange-950/10', urgente: true },
+            { estado: 'consulta_pendiente',titulo: '❓ Consultas pendientes', highlight: 'border-purple-800 bg-purple-950/10', urgente: true },
+            { estado: 'en_gestion',        titulo: '📞 En gestión' },
+            { estado: 'seguimiento_futuro',titulo: '💤 Seguimiento futuro' },
+            { estado: 'senado',            titulo: '💰 Señados' },
+            { estado: 'abonado_completo',  titulo: '✅ Abonados' },
           ]
 
           const diasSinMovimiento = (lead: Lead) =>
@@ -734,29 +734,31 @@ export default function AdminPage() {
 
           const esStandard = (lead: Lead) => catalogo.some(p => p.nombre === lead.producto)
 
-          const accionPrimaria = (lead: Lead): { texto: string; accion: () => void } => {
-            if (lead.estado === 'caliente') return { texto: '→ Contactar y mover a Contactado', accion: () => cambiarEstadoLead(lead.id, 'contactado') }
-            if (lead.estado === 'consulta_pendiente') return { texto: '→ Respondido — mover a Nuevo', accion: () => cambiarEstadoLead(lead.id, 'nuevo') }
-            const std = esStandard(lead)
-            if (std) {
-              if (lead.estado === 'nuevo') return { texto: '→ Marcar contactado', accion: () => cambiarEstadoLead(lead.id, 'contactado') }
-              if (lead.estado === 'contactado') return { texto: '→ Confirmar interés', accion: () => cambiarEstadoLead(lead.id, 'interesado') }
-              return { texto: 'Seña confirmada → OT', accion: () => convertirLeadEnOT(lead) }
-            } else {
-              if (lead.estado === 'nuevo') return { texto: '→ Coordinar relevamiento', accion: () => cambiarEstadoLead(lead.id, 'contactado') }
-              if (lead.estado === 'contactado') return { texto: '→ Relevamiento hecho', accion: () => cambiarEstadoLead(lead.id, 'interesado') }
-              if (lead.estado === 'interesado') return { texto: '→ Presupuesto enviado', accion: () => cambiarEstadoLead(lead.id, 'presupuestado') }
-              return { texto: 'Seña confirmada → OT Medida', accion: () => convertirLeadEnOTMedida(lead) }
+          const accionPrimaria = (lead: Lead): { texto: string; accion: () => void } | null => {
+            if (lead.estado === 'caliente')           return { texto: '📞 Tomar y gestionar', accion: () => cambiarEstadoLead(lead.id, 'en_gestion') }
+            if (lead.estado === 'consulta_pendiente') return { texto: '✓ Respondido — gestionar', accion: () => cambiarEstadoLead(lead.id, 'en_gestion') }
+            if (lead.estado === 'en_gestion')         return { texto: '💤 Pasa a seguimiento', accion: () => cambiarEstadoLead(lead.id, 'seguimiento_futuro') }
+            if (lead.estado === 'seguimiento_futuro') return { texto: '📞 Retomar gestión', accion: () => cambiarEstadoLead(lead.id, 'en_gestion') }
+            if (lead.estado === 'senado') {
+              const std = esStandard(lead)
+              return lead.convertido
+                ? { texto: '✅ Saldo cobrado → Abonado', accion: () => cambiarEstadoLead(lead.id, 'abonado_completo') }
+                : { texto: std ? '💰 Señado → Crear OT' : '💰 Señado → Crear OT Medida', accion: () => std ? convertirLeadEnOT(lead) : convertirLeadEnOTMedida(lead) }
             }
+            if (lead.estado === 'abonado_completo') {
+              const std = esStandard(lead)
+              if (!lead.convertido) return { texto: std ? '✅ Crear OT' : '✅ Crear OT Medida', accion: () => std ? convertirLeadEnOT(lead) : convertirLeadEnOTMedida(lead) }
+            }
+            return null
           }
 
-          const urgenciaClase = (dias: number) =>
-            dias >= 4 ? 'text-red-500' : dias >= 2 ? 'text-amber-500' : 'text-[#555552]'
+          const urgenciaClase = (dias: number, urgente?: boolean) =>
+            urgente && dias >= 1 ? 'text-red-400' : dias >= 4 ? 'text-red-500' : dias >= 2 ? 'text-amber-500' : 'text-[#555552]'
 
           const urgenciaTexto = (dias: number) =>
             dias === 0 ? 'Hoy' : dias === 1 ? 'Hace 1 día' : `Hace ${dias} días`
 
-          const showArchivo = filtroLead === 'cerrado' || filtroLead === 'perdido'
+          const showArchivo = filtroLead === 'perdido'
 
           return (
             <div className="space-y-4">
@@ -767,13 +769,9 @@ export default function AdminPage() {
                     className={`px-3 py-1 rounded-lg text-xs transition-colors ${filtroLead === null ? 'bg-[#C9B99A] text-[#1A1A18] font-medium' : 'bg-[#2E2E2B] text-[#666660] hover:text-white'}`}>
                     Pipeline
                   </button>
-                  <button onClick={() => setFiltroLead('cerrado')}
-                    className={`px-3 py-1 rounded-lg text-xs transition-colors ${filtroLead === 'cerrado' ? 'bg-[#C9B99A] text-[#1A1A18] font-medium' : 'bg-[#2E2E2B] text-[#666660] hover:text-white'}`}>
-                    Cerrados ({leads.filter(l => l.estado === 'cerrado').length})
-                  </button>
                   <button onClick={() => setFiltroLead('perdido')}
                     className={`px-3 py-1 rounded-lg text-xs transition-colors ${filtroLead === 'perdido' ? 'bg-[#C9B99A] text-[#1A1A18] font-medium' : 'bg-[#2E2E2B] text-[#666660] hover:text-white'}`}>
-                    Perdidos ({leads.filter(l => l.estado === 'perdido').length})
+                    ❌ Perdidos ({leads.filter(l => l.estado === 'perdido').length})
                   </button>
                 </div>
                 <div className="flex gap-2">
@@ -781,37 +779,43 @@ export default function AdminPage() {
                     className="text-xs bg-[#2E2E2B] text-[#C9B99A] border border-[#3a3a37] font-medium px-3 py-2 rounded-lg hover:bg-[#3a3a37] flex items-center gap-1.5">
                     📊 Precios / Catálogo
                   </a>
-                  <button onClick={() => { setModalLead('nuevo'); setLeadEstadoEdit('nuevo'); setLeadForm({ nombre: '', telefono: '', barrio: '', producto: 'Zapatero Slim', color: '', cantidad: '1', metodo_pago: '', fuente: 'manual', notas: '' }) }}
+                  <button onClick={() => { setModalLead('nuevo'); setLeadEstadoEdit('en_gestion'); setLeadForm({ nombre: '', telefono: '', barrio: '', producto: 'Zapatero Slim', color: '', cantidad: '1', metodo_pago: '', fuente: 'manual', notas: '' }) }}
                     className="text-xs bg-[#C9B99A] text-[#1A1A18] font-medium px-4 py-2 rounded-lg hover:bg-[#b5a688]">
                     + Agregar lead
                   </button>
                 </div>
               </div>
 
-              {/* Archivo: cerrados / perdidos */}
+              {/* Archivo perdidos */}
               {showArchivo && (
                 <div className="space-y-2">
-                  {leads.filter(l => l.estado === filtroLead).map(lead => (
+                  {leads.filter(l => l.estado === 'perdido').map(lead => (
                     <div key={lead.id} className="bg-[#242421] border border-[#2E2E2B] rounded-xl p-4 flex items-center justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="text-white text-sm font-medium">{lead.nombre}</span>
-                          {lead.convertido && <span className="text-xs text-emerald-400">✓ OT creada</span>}
                         </div>
                         <div className="flex gap-3 text-xs text-[#666660]">
                           <span>{lead.producto}{lead.color ? ` · ${lead.color}` : ''}</span>
                           {lead.barrio && <span>📍 {lead.barrio}</span>}
                           <span>{fmt(lead.created_at)}</span>
+                          {lead.notas && <span className="italic">"{lead.notas}"</span>}
                         </div>
                       </div>
-                      <button onClick={() => { setModalLead(lead); setLeadEstadoEdit(lead.estado); setLeadForm({ nombre: lead.nombre, telefono: lead.telefono ?? '', barrio: lead.barrio ?? '', producto: lead.producto, color: lead.color ?? '', cantidad: String(lead.cantidad), metodo_pago: lead.metodo_pago ?? '', fuente: lead.fuente, notas: lead.notas ?? '' }) }}
-                        className="text-xs text-[#666660] border border-[#3a3a37] px-3 py-1.5 rounded-lg hover:text-white flex-shrink-0">
-                        Editar
-                      </button>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={() => cambiarEstadoLead(lead.id, 'en_gestion')}
+                          className="text-xs text-[#C9B99A] border border-[#3a3a37] px-3 py-1.5 rounded-lg hover:bg-[#2E2E2B]">
+                          Reactivar
+                        </button>
+                        <button onClick={() => { setModalLead(lead); setLeadEstadoEdit(lead.estado); setLeadForm({ nombre: lead.nombre, telefono: lead.telefono ?? '', barrio: lead.barrio ?? '', producto: lead.producto, color: lead.color ?? '', cantidad: String(lead.cantidad), metodo_pago: lead.metodo_pago ?? '', fuente: lead.fuente, notas: lead.notas ?? '' }) }}
+                          className="text-xs text-[#666660] border border-[#3a3a37] px-3 py-1.5 rounded-lg hover:text-white">
+                          Editar
+                        </button>
+                      </div>
                     </div>
                   ))}
-                  {leads.filter(l => l.estado === filtroLead).length === 0 && (
-                    <div className="text-center py-10 text-[#666660] text-sm">Sin leads en este estado</div>
+                  {leads.filter(l => l.estado === 'perdido').length === 0 && (
+                    <div className="text-center py-10 text-[#666660] text-sm">Sin leads perdidos</div>
                   )}
                 </div>
               )}
@@ -822,25 +826,19 @@ export default function AdminPage() {
                   {columnas.map(col => {
                     const colLeads = leads.filter(l => l.estado === col.estado)
                     return (
-                      <div key={col.estado} className={`rounded-xl p-3 min-w-0 border ${col.highlight ? col.highlight : 'bg-[#1E1E1B] border-transparent'}`}>
+                      <div key={col.estado} className={`rounded-xl p-3 min-w-0 border ${col.highlight ?? 'bg-[#1E1E1B] border-transparent'}`}>
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-[#666660] text-xs font-medium uppercase tracking-wider">{col.titulo}</span>
-                          <span className="text-[11px] bg-[#2E2E2B] text-[#666660] px-2 py-0.5 rounded-full">{colLeads.length}</span>
+                          <span className={`text-xs font-medium uppercase tracking-wider ${col.urgente ? 'text-white' : 'text-[#666660]'}`}>{col.titulo}</span>
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full ${colLeads.length > 0 && col.urgente ? 'bg-orange-900 text-orange-200' : 'bg-[#2E2E2B] text-[#666660]'}`}>{colLeads.length}</span>
                         </div>
                         <div className="space-y-2">
                           {colLeads.map(lead => {
                             const dias = diasSinMovimiento(lead)
-                            const std = esStandard(lead)
-                            const { texto: textoAccion, accion } = accionPrimaria(lead)
+                            const accion = accionPrimaria(lead)
                             return (
-                              <div key={lead.id} className="bg-[#242421] border border-[#2E2E2B] rounded-xl p-3">
-                                {/* Nombre + badge tipo */}
-                                <div className="flex items-start justify-between gap-1 mb-1">
-                                  <span className="text-white text-sm font-medium leading-tight">{lead.nombre}</span>
-                                  {!std && (
-                                    <span className="text-[10px] bg-amber-950 text-amber-400 border border-amber-900 px-1.5 py-0.5 rounded-full flex-shrink-0">medida</span>
-                                  )}
-                                </div>
+                              <div key={lead.id} className={`bg-[#242421] rounded-xl p-3 border ${col.urgente ? 'border-[#3a3a37]' : 'border-[#2E2E2B]'}`}>
+                                {/* Nombre */}
+                                <p className="text-white text-sm font-medium leading-tight mb-1">{lead.nombre}</p>
                                 {/* Producto */}
                                 <p className="text-xs text-[#999994] mb-1 leading-snug">
                                   {lead.producto}{lead.color ? ` · ${lead.color}` : ''}{lead.cantidad > 1 ? ` · x${lead.cantidad}` : ''}
@@ -848,11 +846,11 @@ export default function AdminPage() {
                                 {/* Meta */}
                                 <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-[#888780] mb-1">
                                   {lead.barrio && <span>📍 {lead.barrio}</span>}
-                                  {lead.telefono && <span>📱 {lead.telefono}</span>}
-                                  <span>{FUENTE_LABEL[lead.fuente]}</span>
+                                  {lead.metodo_pago && <span>💳 {lead.metodo_pago}</span>}
+                                  <span>{FUENTE_LABEL[lead.fuente] ?? lead.fuente}</span>
                                 </div>
-                                {/* Urgencia */}
-                                <p className={`text-[11px] mb-2 ${urgenciaClase(dias)}`}>🕐 {urgenciaTexto(dias)}</p>
+                                {/* Tiempo sin movimiento */}
+                                <p className={`text-[11px] mb-2 ${urgenciaClase(dias, col.urgente)}`}>🕐 {urgenciaTexto(dias)}</p>
                                 {/* Notas */}
                                 {lead.notas && (
                                   <p className="text-[#888780] text-[11px] italic mb-2 leading-snug line-clamp-2">{lead.notas}</p>
@@ -865,13 +863,14 @@ export default function AdminPage() {
                                   </a>
                                 )}
                                 {/* Acción primaria */}
-                                {lead.convertido ? (
-                                  <span className="block text-center text-xs text-emerald-400 py-1.5">✓ OT creada</span>
-                                ) : (
-                                  <button onClick={accion}
+                                {accion && (
+                                  <button onClick={accion.accion}
                                     className="w-full text-xs bg-[#C9B99A] text-[#1A1A18] font-medium px-3 py-1.5 rounded-lg hover:bg-[#b5a688] mb-1.5">
-                                    {textoAccion}
+                                    {accion.texto}
                                   </button>
+                                )}
+                                {lead.estado === 'abonado_completo' && lead.convertido && (
+                                  <span className="block text-center text-xs text-emerald-400 py-1">✓ OT creada · listo para entrega</span>
                                 )}
                                 {/* Acciones secundarias */}
                                 <div className="flex gap-1">
