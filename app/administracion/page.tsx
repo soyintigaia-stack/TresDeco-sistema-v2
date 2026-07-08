@@ -423,7 +423,7 @@ export default function AdminPage() {
             <Tab id="standard"  label="Standard" />
             <Tab id="medida"    label="A Medida" />
             <Tab id="cotizador" label="Cotizador" badge={presupuestosPendientes.length} />
-            <Tab id="crm"          label="CRM" badge={leads.filter(l => l.estado === 'nuevo').length} />
+            <Tab id="crm"          label="CRM" badge={leads.filter(l => l.estado === 'caliente' || l.estado === 'consulta_pendiente').length || leads.filter(l => l.estado === 'nuevo').length} />
             <Tab id="remarketing"  label="Remarketing" badge={leads.filter(l => ['nuevo','contactado','interesado'].includes(l.estado) && convs.find(c => c.telefono === l.telefono && new Date(c.updated_at) < new Date(Date.now() - 24*60*60*1000))).length || undefined} />
             <Tab id="contenido"    label="Contenido IA" />
             <Tab id="ads"          label="Meta Ads" />
@@ -720,11 +720,13 @@ export default function AdminPage() {
 
         {/* ─── CRM ─── */}
         {vista === 'crm' && (() => {
-          const columnas: { estado: EstadoLead; titulo: string }[] = [
-            { estado: 'nuevo',        titulo: 'Nuevos'        },
-            { estado: 'contactado',   titulo: 'Contactados'   },
-            { estado: 'interesado',   titulo: 'Interesados'   },
-            { estado: 'presupuestado',titulo: 'Presupuestados'},
+          const columnas: { estado: EstadoLead; titulo: string; highlight?: string }[] = [
+            { estado: 'caliente',          titulo: '🔥 Listos para comprar', highlight: 'border-orange-800 bg-orange-950/10' },
+            { estado: 'consulta_pendiente',titulo: '❓ Consultas pendientes', highlight: 'border-purple-800 bg-purple-950/10' },
+            { estado: 'nuevo',             titulo: 'Nuevos'        },
+            { estado: 'contactado',        titulo: 'Contactados'   },
+            { estado: 'interesado',        titulo: 'Interesados'   },
+            { estado: 'presupuestado',     titulo: 'Presupuestados'},
           ]
 
           const diasSinMovimiento = (lead: Lead) =>
@@ -733,6 +735,8 @@ export default function AdminPage() {
           const esStandard = (lead: Lead) => catalogo.some(p => p.nombre === lead.producto)
 
           const accionPrimaria = (lead: Lead): { texto: string; accion: () => void } => {
+            if (lead.estado === 'caliente') return { texto: '→ Contactar y mover a Contactado', accion: () => cambiarEstadoLead(lead.id, 'contactado') }
+            if (lead.estado === 'consulta_pendiente') return { texto: '→ Respondido — mover a Nuevo', accion: () => cambiarEstadoLead(lead.id, 'nuevo') }
             const std = esStandard(lead)
             if (std) {
               if (lead.estado === 'nuevo') return { texto: '→ Marcar contactado', accion: () => cambiarEstadoLead(lead.id, 'contactado') }
@@ -814,11 +818,11 @@ export default function AdminPage() {
 
               {/* Kanban */}
               {!showArchivo && (
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-6 gap-3">
                   {columnas.map(col => {
                     const colLeads = leads.filter(l => l.estado === col.estado)
                     return (
-                      <div key={col.estado} className="bg-[#1E1E1B] rounded-xl p-3 min-w-0">
+                      <div key={col.estado} className={`rounded-xl p-3 min-w-0 border ${col.highlight ? col.highlight : 'bg-[#1E1E1B] border-transparent'}`}>
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-[#666660] text-xs font-medium uppercase tracking-wider">{col.titulo}</span>
                           <span className="text-[11px] bg-[#2E2E2B] text-[#666660] px-2 py-0.5 rounded-full">{colLeads.length}</span>

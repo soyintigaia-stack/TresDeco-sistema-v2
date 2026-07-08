@@ -221,8 +221,8 @@ export interface Configuracion {
 // TIPOS — CRM / LEADS
 // ─────────────────────────────────────────────
 
-export type EstadoLead = 'nuevo' | 'contactado' | 'interesado' | 'presupuestado' | 'cerrado' | 'perdido'
-export type FuenteLead = 'whatsapp' | 'instagram' | 'web' | 'manual' | 'manychat' | 'wati'
+export type EstadoLead = 'nuevo' | 'contactado' | 'interesado' | 'presupuestado' | 'cerrado' | 'perdido' | 'caliente' | 'consulta_pendiente'
+export type FuenteLead = 'whatsapp' | 'instagram' | 'web' | 'manual' | 'manychat' | 'wati' | 'tyche'
 
 export interface Lead {
   id: string
@@ -243,12 +243,14 @@ export interface Lead {
 }
 
 export const ESTADO_LEAD_CONFIG: Record<EstadoLead, { label: string; color: string; dot: string }> = {
-  nuevo:         { label: 'Nuevo',         color: 'bg-blue-950 text-blue-300 border border-blue-800',     dot: 'bg-blue-400'   },
-  contactado:    { label: 'Contactado',    color: 'bg-zinc-800 text-zinc-300 border border-zinc-600',     dot: 'bg-zinc-400'   },
-  interesado:    { label: 'Interesado',    color: 'bg-amber-950 text-amber-300 border border-amber-800',  dot: 'bg-amber-400'  },
-  presupuestado: { label: 'Presupuestado', color: 'bg-sky-950 text-sky-300 border border-sky-800',        dot: 'bg-sky-400'    },
-  cerrado:       { label: 'Cerrado ✓',     color: 'bg-emerald-950 text-emerald-300 border border-emerald-800', dot: 'bg-emerald-400' },
-  perdido:       { label: 'Perdido',       color: 'bg-red-950 text-red-400 border border-red-900',        dot: 'bg-red-500'    },
+  nuevo:             { label: 'Nuevo',              color: 'bg-blue-950 text-blue-300 border border-blue-800',         dot: 'bg-blue-400'    },
+  contactado:        { label: 'Contactado',         color: 'bg-zinc-800 text-zinc-300 border border-zinc-600',         dot: 'bg-zinc-400'    },
+  interesado:        { label: 'Interesado',         color: 'bg-amber-950 text-amber-300 border border-amber-800',      dot: 'bg-amber-400'   },
+  presupuestado:     { label: 'Presupuestado',      color: 'bg-sky-950 text-sky-300 border border-sky-800',            dot: 'bg-sky-400'     },
+  cerrado:           { label: 'Cerrado ✓',          color: 'bg-emerald-950 text-emerald-300 border border-emerald-800',dot: 'bg-emerald-400' },
+  perdido:           { label: 'Perdido',            color: 'bg-red-950 text-red-400 border border-red-900',            dot: 'bg-red-500'     },
+  caliente:          { label: '🔥 Listo para comprar', color: 'bg-orange-950 text-orange-300 border border-orange-700', dot: 'bg-orange-400' },
+  consulta_pendiente:{ label: '❓ Consulta pendiente', color: 'bg-purple-950 text-purple-300 border border-purple-800', dot: 'bg-purple-400' },
 }
 
 export const FUENTE_LABEL: Record<FuenteLead, string> = {
@@ -258,6 +260,7 @@ export const FUENTE_LABEL: Record<FuenteLead, string> = {
   manual:    '✏️ Manual',
   manychat:  '🤖 ManyChat',
   wati:      '🤖 WhatsApp Bot',
+  tyche:     '🤖 Angela (Tyche)',
 }
 
 // ─────────────────────────────────────────────
